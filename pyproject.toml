@@ -1,0 +1,87 @@
+[build-system]
+requires = ["setuptools>=65", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tenant-management-service"
+version = "0.1.0"
+description = "Dyno CRM Service"
+authors = [
+  { name = "Luke Carpenter" }
+]
+requires-python = ">=3.10"
+
+# ---------------------------------------------------------------------------
+# Runtime dependencies (PRODUCTION)
+# ---------------------------------------------------------------------------
+
+dependencies = [
+    # Core framework
+    "fastapi>=0.110.0",
+    "uvicorn>=0.29.0",
+    "pydantic>=2.6.0",
+    "pydantic[email]>=2.6.0",
+    "pydantic-settings>=2.2.1",
+    "sqlalchemy>=2.0.25",
+    "psycopg2-binary>=2.9.9",
+    "pyliquibase>=1.4.1",
+    "python-dotenv>=1.0.1",
+
+    # JWT support
+    "python-jose[cryptography]>=3.3.0",
+
+    # Messaging & eventing
+    "celery>=5.4.0",
+
+    # Parsing & pattern matching
+    "jsonschema>=4.21.0",
+    "json-repair>=0.15.0",
+    "phonenumbers>=8.13.6",
+    "usaddress>=0.5.11",
+
+    # HTTP client
+    "httpx>=0.27.0,<0.28.0",
+
+    # Observability / OpenTelemetry
+    "opentelemetry-api>=1.24.0,<2.0.0",
+    "opentelemetry-sdk>=1.24.0,<2.0.0",
+    "opentelemetry-exporter-otlp>=1.24.0,<2.0.0",
+    "opentelemetry-instrumentation-fastapi>=0.45b0,<1.0.0",
+    "opentelemetry-instrumentation-asgi>=0.45b0,<1.0.0",
+    "opentelemetry-instrumentation-httpx>=0.45b0,<1.0.0",
+    "opentelemetry-instrumentation-sqlalchemy>=0.45b0,<1.0.0",
+    "opentelemetry-instrumentation-logging>=0.45b0,<1.0.0",
+    "opentelemetry-instrumentation-celery>=0.45b0,<1.0.0",
+
+    # Optional JSON logic (included for parity with the Formless service)
+    "json-logic>=0.6.3",
+]
+
+# ---------------------------------------------------------------------------
+# Optional dependency groups
+# ---------------------------------------------------------------------------
+[project.optional-dependencies]
+dev = [
+    "black",
+    "isort",
+    "flake8",
+    "pytest",
+    "pytest-asyncio",
+    "httpx",
+]
+
+[tool.setuptools]
+package-dir = {"" = "app"}
+
+[tool.setuptools.packages.find]
+where = ["app"]
+
+# ---------------------------------------------------------------------------
+# Tooling configs
+# ---------------------------------------------------------------------------
+[tool.black]
+line-length = 88
+target-version = ["py310"]
+
+[tool.isort]
+profile = "black"

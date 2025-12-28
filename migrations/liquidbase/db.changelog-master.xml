@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.8.xsd">
+    <!-- Master changelog for DYNO CRM -->
+    <!-- Include individual entity change logs here -->
+    <include file="contact.sql" relativeToChangelogFile="true"/>
+    <include file="company.sql" relativeToChangelogFile="true"/>
+    <include file="pipeline.sql" relativeToChangelogFile="true"/>
+    <include file="pipeline_stage.sql" relativeToChangelogFile="true"/>
+    <include file="deal.sql" relativeToChangelogFile="true"/>
+    <include file="activity.sql" relativeToChangelogFile="true"/>
+    <include file="list.sql" relativeToChangelogFile="true"/>
+    <include file="list_membership.sql" relativeToChangelogFile="true"/>
+    <include file="association.sql" relativeToChangelogFile="true"/>
+</databaseChangeLog>

@@ -1,0 +1,64 @@
+version: '3.9'
+
+services:
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: crm_user
+      POSTGRES_PASSWORD: crm_pass
+      POSTGRES_DB: crm_db
+    ports:
+      - '5432:5432'
+    volumes:
+      - db-data:/var/lib/postgresql/data
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    ports:
+      - '5672:5672'
+      - '15672:15672'
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+
+  jaeger:
+    image: jaegertracing/all-in-one:1.51
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+    ports:
+      - '16686:16686' # Jaeger UI
+      - '4317:4317'   # OTLP gRPC
+      - '4318:4318'   # OTLP HTTP
+
+  crm-api:
+    build: .
+    depends_on:
+      - db
+      - rabbitmq
+      - jaeger
+    environment:
+      DATABASE_URL: postgresql+psycopg2://crm_user:crm_pass@db:5432/crm_db
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672//
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4318
+      OTEL_SERVICE_NAME: dyno-crm-api
+      LOG_LEVEL: INFO
+    ports:
+      - '8000:8000'
+    command: ["uvicorn", "main_api:app", "--host", "0.0.0.0", "--port", "8000"]
+
+  crm-worker:
+    build: .
+    depends_on:
+      - db
+      - rabbitmq
+      - jaeger
+    environment:
+      DATABASE_URL: postgresql+psycopg2://crm_user:crm_pass@db:5432/crm_db
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672//
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4318
+      OTEL_SERVICE_NAME: dyno-crm-worker
+      LOG_LEVEL: INFO
+    command: ["bash", "-c", "celery -A app.messaging.tasks.consumers worker -l info --pool=solo"]
+
+volumes:
+  db-data:

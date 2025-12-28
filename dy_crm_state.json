@@ -1,0 +1,29 @@
+{
+  "current_phase": "phase_15",
+  "tasks": [
+    {"id": 1, "title": "Load CRM Requirements Document", "status": "done", "output": "crm_requirements_summary.md"},
+    {"id": 2, "title": "Load Developer Guide", "status": "done", "output": "developer_guide_summary.md"},
+    {"id": 3, "title": "Load Conversa Integration Guide", "status": "done", "output": null},
+    {"id": 4, "title": "Load Tenant Service Integration Guide", "status": "done", "output": null},
+    {"id": 5, "title": "Extract domain concepts and constraints from CRM requirements", "status": "done", "output": "crm_requirements_summary.md"},
+    {"id": 6, "title": "Generate Domain Model Summary", "status": "done", "output": "domain_model_summary.md"},
+    {"id": 7, "title": "Create Liquibase DDL for domain entities", "status": "done", "output": "migrations/liquidbase"},
+    {"id": 8, "title": "Implement SQLAlchemy ORM models", "status": "done", "output": "app/domain/models"},
+    {"id": 9, "title": "Implement API schema models", "status": "done", "output": "app/domain/schemas"},
+    {"id": 10, "title": "Define API routes", "status": "done", "output": "app/api/routes/contact.py, app/api/routes/company.py, app/api/routes/pipeline.py, app/api/routes/pipeline_stage.py, app/api/routes/deal.py, app/api/routes/activity.py, app/api/routes/list.py, app/api/routes/list_membership.py, app/api/routes/association.py"},
+    {"id": 11, "title": "Implement business services", "status": "done", "output": "contact_service.py, company_service.py, pipeline_service.py, pipeline_stage_service.py, deal_service.py, activity_service.py, list_service.py, list_membership_service.py, association_service.py"},
+    {"id": 12, "title": "Define event schemas and producers", "status": "done", "output": "app/domain/schemas/events, app/messaging/producers"},
+    {"id": 13, "title": "Implement async consumers", "status": "done", "output": "app/messaging/tasks/consumers.py"},
+    {"id": 14, "title": "Implement logging and observability", "status": "done", "output": "app/core/logging.py, app/core/telemetry.py, main_api.py"},
+    {"id": 15, "title": "Define Docker & Compose", "status": "done", "output": "Dockerfile, docker-compose.yml, requirements.txt"},
+    {"id": 16, "title": "Implement test framework", "status": "done", "output": "tests/conftest.py, tests/test_contact.py, docker/docker-compose.test.yml"},
+    {"id": 17, "title": "Implement admin/tenant/utility APIs", "status": "done", "output": "app/api/routes/health.py, app/api/routes/admin.py, app/api/routes/__init__.py, main_api.py"},
+    {"id": 18, "title": "Implement Dyno Conversa integration", "status": "done", "output": "app/messaging/tasks/conversa.py, app/messaging/tasks/__init__.py"},
+    {"id": 19, "title": "Implement Tenant Service integration", "status": "done", "output": "app/messaging/tasks/tenant.py, app/messaging/tasks/__init__.py"},
+    {"id": 20, "title": "Implement Orchestration service integration", "status": "done", "output": "app/messaging/tasks/orchestration.py, app/messaging/tasks/__init__.py"}
+    ,
+    {"id": 21, "title": "Review all code in the prject and fix bugs and coding mistakes", "status": "not_started", "output": null},
+    {"id": 22, "title": "Compress all project contents for download", "status": "not_started", "output": null}
+  ],
+  "last_updated": "2025-12-28T15:42:36Z"
+}
