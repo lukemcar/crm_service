@@ -11,7 +11,7 @@ from __future__ import annotations
 from typing import List
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Path, Query, Response, status
 from sqlalchemy.orm import Session
 
 from app.core.db import get_db
@@ -76,16 +76,21 @@ def update_list(
     return updated
 
 
-@router.delete("/{list_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/{list_id}", 
+    status_code=status.HTTP_204_NO_CONTENT,
+    response_class=Response,
+)
 def delete_list(
     *,
     tenant_id: UUID = Query(..., description="Tenant identifier"),
     list_id: UUID = Path(..., description="List ID"),
     db: Session = Depends(get_db),
-) -> None:
+) -> Response:
     """Delete a list."""
     lst = list_service.get_list(db, list_id, tenant_id)
     if not lst:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="List not found")
     list_service.delete_list(db, lst)
-    return None
+    
+    return Response(status_code=status.HTTP_204_NO_CONTENT)

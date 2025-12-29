@@ -10,7 +10,7 @@ from __future__ import annotations
 from typing import List
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Path, Query, Response, status
 from sqlalchemy.orm import Session
 
 from app.core.db import get_db
@@ -58,16 +58,21 @@ def get_association(
     return assoc
 
 
-@router.delete("/{association_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/{association_id}", 
+    status_code=status.HTTP_204_NO_CONTENT,
+    response_class=Response,
+)
 def delete_association(
     *,
     tenant_id: UUID = Query(..., description="Tenant identifier"),
     association_id: UUID = Path(..., description="Association ID"),
     db: Session = Depends(get_db),
-) -> None:
+) -> Response:
     """Delete an association by ID."""
     assoc = association_service.get_association(db, association_id, tenant_id)
     if not assoc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Association not found")
     association_service.delete_association(db, assoc)
-    return None
+    
+    return Response(status_code=status.HTTP_204_NO_CONTENT)

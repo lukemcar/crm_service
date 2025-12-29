@@ -3,57 +3,83 @@ version: '3.9'
 services:
   db:
     image: postgres:15-alpine
+    container_name: crm_service_db
     environment:
-      POSTGRES_USER: crm_user
-      POSTGRES_PASSWORD: crm_pass
-      POSTGRES_DB: crm_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
     ports:
-      - '5432:5432'
+      - "11432:5432"
     volumes:
-      - db-data:/var/lib/postgresql/data
+      - db_data:/var/lib/postgresql/data
+      - ./docker/postgres/init-database.sql:/docker-entrypoint-initdb.d/init-database.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
 
   rabbitmq:
     image: rabbitmq:3-management
+    container_name: crm_service_rabbitmq
     ports:
-      - '5672:5672'
-      - '15672:15672'
+      - '3672:5672'
+      - '21672:15672'
     environment:
       RABBITMQ_DEFAULT_USER: guest
       RABBITMQ_DEFAULT_PASS: guest
 
   jaeger:
     image: jaegertracing/all-in-one:1.51
+    container_name: crm_service_jaeger
     environment:
       COLLECTOR_OTLP_ENABLED: "true"
     ports:
-      - '16686:16686' # Jaeger UI
-      - '4317:4317'   # OTLP gRPC
-      - '4318:4318'   # OTLP HTTP
+      - '6686:16686' # Jaeger UI
+      - '13317:4317'   # OTLP gRPC
+      - '13318:4318'   # OTLP HTTP
 
   crm-api:
-    build: .
+    build:
+      context: .
+      dockerfile: docker/api/Dockerfile
+
+    container_name: crm_service_api
     depends_on:
       - db
       - rabbitmq
       - jaeger
     environment:
-      DATABASE_URL: postgresql+psycopg2://crm_user:crm_pass@db:5432/crm_db
+      DATABASE_URL: postgresql+psycopg2://crm_service_app:2cHfTngNdjFIX78JUz2Z91iDpQKGJPWo@db:5432/crm_service
       RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672//
+
+      LIQUIBASE_ENABLED: "true"
+      LIQUIBASE_PROPERTY_FILE: "migrations/liquibase/docker-liquibase.properties"
+
+      # Message broker wiring
+      CELERY_BROKER_URL: amqp://tenant_service:tenant_service@rabbitmq:5672/tenant_service
+      CELERY_RESULT_BACKEND: rpc://
+
+      # OpenTelemetry exporter -> collector
       OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4318
+      OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
       OTEL_SERVICE_NAME: dyno-crm-api
+      OTEL_TRACES_EXPORTER: otlp
+      
       LOG_LEVEL: INFO
     ports:
-      - '8000:8000'
+      - '8001:8000'
     command: ["uvicorn", "main_api:app", "--host", "0.0.0.0", "--port", "8000"]
 
   crm-worker:
     build: .
+    container_name: crm_service_worker
     depends_on:
       - db
       - rabbitmq
       - jaeger
     environment:
-      DATABASE_URL: postgresql+psycopg2://crm_user:crm_pass@db:5432/crm_db
+      DATABASE_URL: postgresql+psycopg2://crm_service_app:2cHfTngNdjFIX78JUz2Z91iDpQKGJPWo@db:5432/crm_service
       RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672//
       OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4318
       OTEL_SERVICE_NAME: dyno-crm-worker
@@ -61,4 +87,4 @@ services:
     command: ["bash", "-c", "celery -A app.messaging.tasks.consumers worker -l info --pool=solo"]
 
 volumes:
-  db-data:
+  db_data:

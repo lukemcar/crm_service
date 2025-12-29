@@ -10,7 +10,7 @@ from __future__ import annotations
 from typing import List
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Path, Query, Response, status
 from sqlalchemy.orm import Session
 
 from app.core.db import get_db
@@ -71,15 +71,23 @@ def update_company(
     return updated
 
 
-@router.delete("/{company_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/{company_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    response_class=Response,
+)
 def delete_company(
     *,
     tenant_id: UUID = Query(..., description="Tenant identifier"),
     company_id: UUID = Path(..., description="Company ID"),
     db: Session = Depends(get_db),
-) -> None:
+) -> Response:
     company = company_service.get_company(db, company_id, tenant_id)
     if not company:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Company not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Company not found",
+        )
+
     company_service.delete_company(db, company)
-    return None
+    return Response(status_code=status.HTTP_204_NO_CONTENT)

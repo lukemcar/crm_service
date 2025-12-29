@@ -9,7 +9,7 @@ from __future__ import annotations
 from typing import List
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Path, Query, Response, status
 from sqlalchemy.orm import Session
 
 from app.core.db import get_db
@@ -69,15 +69,20 @@ def update_pipeline(
     return updated
 
 
-@router.delete("/{pipeline_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/{pipeline_id}", 
+    status_code=status.HTTP_204_NO_CONTENT,
+    response_class=Response,
+)
 def delete_pipeline(
     *,
     tenant_id: UUID = Query(..., description="Tenant identifier"),
     pipeline_id: UUID = Path(..., description="Pipeline ID"),
     db: Session = Depends(get_db),
-) -> None:
+) -> Response:
     pipeline = pipeline_service.get_pipeline(db, pipeline_id, tenant_id)
     if not pipeline:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Pipeline not found")
     pipeline_service.delete_pipeline(db, pipeline)
-    return None
+    
+    return Response(status_code=status.HTTP_204_NO_CONTENT)

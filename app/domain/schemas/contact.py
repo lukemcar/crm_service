@@ -12,7 +12,7 @@ from datetime import datetime
 from typing import Optional
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 
 class ContactBase(BaseModel):
@@ -47,5 +47,5 @@ class ContactRead(ContactBase):
     created_by: Optional[UUID] = None
     updated_by: Optional[UUID] = None
 
-    class Config:
-        orm_mode = True
+    # Configure Pydantic v2 to load from ORM attributes
+    model_config = ConfigDict(from_attributes=True)

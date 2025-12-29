@@ -11,7 +11,7 @@ from __future__ import annotations
 from typing import List
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Path, Query, Response, status
 from sqlalchemy.orm import Session
 
 from app.core.db import get_db
@@ -99,16 +99,20 @@ def update_deal(
     return updated
 
 
-@router.delete("/{deal_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/{deal_id}", 
+    status_code=status.HTTP_204_NO_CONTENT,
+    response_class=Response,
+)
 def delete_deal(
     *,
     tenant_id: UUID = Query(..., description="Tenant identifier"),
     deal_id: UUID = Path(..., description="Deal ID"),
     db: Session = Depends(get_db),
-) -> None:
+) -> Response:
     """Delete a deal by ID."""
     deal = deal_service.get_deal(db, deal_id, tenant_id)
     if not deal:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Deal not found")
     deal_service.delete_deal(db, deal)
-    return None
+    return Response(status_code=status.HTTP_204_NO_CONTENT)

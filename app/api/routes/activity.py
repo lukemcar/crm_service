@@ -11,7 +11,7 @@ from __future__ import annotations
 from typing import List
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Path, Query, Response, status
 from sqlalchemy.orm import Session
 
 from app.core.db import get_db
@@ -76,16 +76,20 @@ def update_activity(
     return updated
 
 
-@router.delete("/{activity_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/{activity_id}", 
+    status_code=status.HTTP_204_NO_CONTENT,
+    response_class=Response,
+)
 def delete_activity(
     *,
     tenant_id: UUID = Query(..., description="Tenant identifier"),
     activity_id: UUID = Path(..., description="Activity ID"),
     db: Session = Depends(get_db),
-) -> None:
+) -> Response:
     """Delete an activity."""
     activity = activity_service.get_activity(db, activity_id, tenant_id)
     if not activity:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Activity not found")
     activity_service.delete_activity(db, activity)
-    return None
+    return Response(status_code=status.HTTP_204_NO_CONTENT)

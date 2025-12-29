@@ -11,7 +11,7 @@ from __future__ import annotations
 from typing import List
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Path, Query, Response, status
 from sqlalchemy.orm import Session
 
 from app.core.db import get_db
@@ -72,15 +72,19 @@ def update_contact(
     return updated
 
 
-@router.delete("/{contact_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/{contact_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    response_class=Response,
+)
 def delete_contact(
     *,
     tenant_id: UUID = Query(..., description="Tenant identifier"),
     contact_id: UUID = Path(..., description="Contact ID"),
     db: Session = Depends(get_db),
-) -> None:
+) -> Response:
     contact = contact_service.get_contact(db, contact_id, tenant_id)
     if not contact:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Contact not found")
     contact_service.delete_contact(db, contact)
-    return None
+    return Response(status_code=status.HTTP_204_NO_CONTENT)

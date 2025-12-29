@@ -62,6 +62,15 @@ def init_tracing(service_name: str = "crm") -> None:
     import os
     env_service_name = os.getenv("OTEL_SERVICE_NAME")
     chosen_service_name = env_service_name or service_name
+    # If no OTLP endpoint is configured, disable tracing.
+    # Without this guard, the default OTLP exporter will attempt to
+    # connect to localhost:4318 and emit errors when no collector is running.
+    exporter_endpoint = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT")
+    if not exporter_endpoint:
+        logger.info(
+            "OTEL exporter endpoint not configured; tracing disabled (set OTEL_EXPORTER_OTLP_ENDPOINT to enable)"
+        )
+        return
     # Merge default and custom resources
     default_resource = Resource.create()
     custom_resource = Resource.create({"service.name": chosen_service_name})

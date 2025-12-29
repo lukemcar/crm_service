@@ -11,7 +11,7 @@ from __future__ import annotations
 from typing import List
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Path, Query, Response, status
 from sqlalchemy.orm import Session
 
 from app.core.db import get_db
@@ -93,13 +93,17 @@ def update_stage(
     return updated
 
 
-@router.delete("/stages/{stage_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/stages/{stage_id}", 
+    status_code=status.HTTP_204_NO_CONTENT,
+    response_class=Response,
+)
 def delete_stage(
     *,
     tenant_id: UUID = Query(..., description="Tenant identifier"),
     stage_id: UUID = Path(..., description="Stage ID"),
     db: Session = Depends(get_db),
-) -> None:
+) -> Response:
     stage = pipeline_stage_service.get_stage(db, stage_id)
     if not stage:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Stage not found")
@@ -108,4 +112,4 @@ def delete_stage(
     if not pipeline:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Stage not found for tenant")
     pipeline_stage_service.delete_stage(db, stage)
-    return None
+    return Response(status_code=status.HTTP_204_NO_CONTENT)

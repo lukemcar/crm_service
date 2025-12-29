@@ -11,7 +11,7 @@ from __future__ import annotations
 from typing import List
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Path, Query, Response, status
 from sqlalchemy.orm import Session
 
 from app.core.db import get_db
@@ -60,13 +60,17 @@ def create_membership(
     return membership
 
 
-@router.delete("/memberships/{membership_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/memberships/{membership_id}", 
+    status_code=status.HTTP_204_NO_CONTENT,
+    response_class=Response,
+)
 def delete_membership(
     *,
     tenant_id: UUID = Query(..., description="Tenant identifier"),
     membership_id: UUID = Path(..., description="Membership ID"),
     db: Session = Depends(get_db),
-) -> None:
+) -> Response:
     """Delete a membership after verifying it belongs to a list in the tenant."""
     membership = list_membership_service.get_membership(db, membership_id)
     if not membership:
@@ -76,4 +80,5 @@ def delete_membership(
     if not lst:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Membership not found")
     list_membership_service.delete_membership(db, membership)
-    return None
+    
+    return Response(status_code=status.HTTP_204_NO_CONTENT)

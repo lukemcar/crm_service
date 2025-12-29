@@ -7,7 +7,10 @@ developer guide and tenant service for consistency.
 
 from __future__ import annotations
 
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
+
+from app.core.config import Config
 
 from app.api.routes import (
     contact_router,
@@ -28,17 +31,38 @@ from app.api.routes import (
 # log statements are emitted or spans are created.  The telemetry
 # module gracefully falls back to no-op implementations if
 # OpenTelemetry is unavailable.
-from app.core.logging import configure_logging
+from app.core.logging import configure_logging, get_logger
 from app.core.telemetry import init_tracing, instrument_fastapi
+
+from app.util.liquibase import apply_changelog
+
+configure_logging()
+logger = get_logger(__name__)
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Run tasks on startup and shutdown of the FastAPI application."""
+    logger.info("startup_event: CRM Service is starting")
+    
+    if Config.liquibase_enabled():
+        try:
+            apply_changelog(Config.liquibase_property_file())
+        except Exception as exc:
+            logger.error(
+                "An error occurred while applying Liquibase changelog", exc_info=exc
+            )
+    else:
+        logger.info("Skipping Liquibase schema validation and update")
+    yield
+    logger.info("shutdown_event: CRM Service is shutting down")
 
 
 def create_app() -> FastAPI:
     """Create and configure the FastAPI application."""
     # Configure logging and tracing before creating the app.  Logging
     # configuration happens only once; subsequent calls are idempotent.
-    configure_logging()
     init_tracing(service_name="dyno-crm")
-    app = FastAPI(title="DYNO CRM API", version="0.1.0")
+    app = FastAPI(lifespan=lifespan, title="DYNO CRM API", version="0.1.0")
 
     # Include routers
     app.include_router(contact_router)

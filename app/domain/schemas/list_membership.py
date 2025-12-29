@@ -11,7 +11,7 @@ from datetime import datetime
 from typing import Optional
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 
 class ListMembershipBase(BaseModel):
@@ -29,5 +29,5 @@ class ListMembershipRead(ListMembershipBase):
     created_at: datetime
     created_by: Optional[UUID] = None
 
-    class Config:
-        orm_mode = True
+    # Configure Pydantic v2 to load from ORM attributes
+    model_config = ConfigDict(from_attributes=True)
