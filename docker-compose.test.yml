@@ -1,0 +1,33 @@
+version: "3.8"
+
+services:
+  db:
+    # Use an official Postgres image for testing.  Use a fixed tag to ensure
+    # reproducible builds.
+    image: postgres:15-alpine
+    container_name: crm_service_test_db
+    environment:
+      # The default superuser credentials.  The init script will create
+      # additional databases and users as needed.
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
+    ports:
+      # Expose the Postgres port on a non‑standard host port to avoid
+      # collisions with any local Postgres installations.  Tests will
+      # connect to localhost:25432.
+      - "25432:5432"
+    volumes:
+      # Mount the existing init script so that the test database and
+      # required users are created when the container starts.  The
+      # relative path is from the project root to align with the
+      # repository structure.
+      - ./docker/postgres/init-database.sql:/docker-entrypoint-initdb.d/init-database.sql:ro
+    healthcheck:
+      # Use the built‑in pg_isready command to determine when Postgres is
+      # ready to accept connections.  The environment variables above
+      # define the default user and database used by pg_isready.
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 10

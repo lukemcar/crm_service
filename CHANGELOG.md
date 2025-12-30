@@ -1,21 +1,42 @@
-## [2025-12-30] – CRM AI Code Review Hardening
+## [2025-12-30] – Postgres-in-Docker Test Harness
 
 ### Added
-- New tests for contact CRUD endpoints (`tests/test_contact.py`) exercising create, retrieve, patch and delete operations against tenant-scoped routes.
-- New tests for company CRUD endpoints (`tests/test_company.py`) mirroring the contact tests for the company domain.
-- New tests for message producers (`tests/test_producers.py`) that patch the `BaseProducer._send` method to assert correct task names, payloads and headers for contact and company events.
-- New tests for Celery configuration (`tests/test_celery_config.py`) asserting that the exchange name is `crm` and that task routes for contact and company actions map to the correct queues and routing keys.
+- Introduced a comprehensive test infrastructure that runs database tests
+  against a temporary Postgres instance started via Docker Compose.  A new
+  `docker-compose.test.yml` defines the test container and mounts the
+  existing `init-database.sql` to provision the database and users.
+- Added `test-liquibase.properties` to point Liquibase at the test
+  database.  Migrations are applied once per test session only when
+  tests are marked with `@pytest.mark.liquibase`.
+- Added a dedicated `pytest.ini` configuring custom markers (`postgres`,
+  `liquibase`, `integration`) and enabling terse output.
+- Rewrote `tests/conftest.py` to start/stop the Postgres container,
+  apply migrations, create a SQLAlchemy engine, provide transactional
+  sessions, and supply a FastAPI `TestClient` that overrides the
+  database dependency.  Pure unit tests continue to run without
+  starting Docker.
+- Added a new test `tests/test_pg_jsonb.py` verifying that JSONB
+  columns are usable under Postgres.
 
 ### Changed
-- Rewrote `app/core/celery_app.py` specifically for the CRM service.  The Celery app now uses the `crm` exchange, defines per-domain queues and dead‑letter queues, and registers task routes for all CRUD actions across CRM domains.  Telemetry initialization remains conditional.
-- Updated `app/domain/services/contact_service.py` to remove usage of a `job_title` attribute on the `Contact` ORM model.  The create and patch functions no longer set or clone this transient attribute, avoiding runtime errors.
-- Updated `app/domain/services/company_service.py` to correct imports, map Pydantic fields (`name`, `website`) to ORM attributes (`company_name`, `domain`), handle nested collections properly and build deltas using internal field names.  Added convenience properties `name` and `website` to `Company` model via attributes (implemented in a prior commit).
-- Fixed numerous import paths in API route modules (`contacts_*_route.py`, `companies_*_route.py`) to reference modules within `app.domain.services`, `app.domain.schemas` and `app.core.db`.  Ensured that tenant and admin routers are included in the FastAPI application via `main_api.create_app`.
-- Added and updated tests in `tests/` to use the correct application factory (`main_api.create_app`) and to override the database dependency with an in‑memory SQLite database for deterministic unit tests.
+- Updated `tests/test_contact.py` to use the tenant‑scoped API
+  (`/tenants/{tenant_id}/contacts`) and the appropriate nested payload
+  structure for phones and emails.  Contact tests now send the user
+  identity via the `X-User` header and apply updates via JSON Patch.
+- Removed the old SQLite-based test setup; database tests now use
+  Postgres exclusively and run within transactions that roll back
+  after each test.
+
+### Tests
+- All contact API tests are marked with `@pytest.mark.postgres` and
+  `@pytest.mark.liquibase` to trigger the Docker container and
+  migrations.  A new PG-specific test ensures JSONB columns work
+  correctly.
 
 ### Notes
-- The tests provided in this commit rely on `pytest`, `fastapi[test]` and `SQLAlchemy` to run locally.  They assume that `pytest` is installed in the developer environment.  Each test session initializes a fresh SQLite database and overrides the FastAPI dependency for the DB session.
-- The Celery configuration uses environment variables `CELERY_BROKER_URL` and `CELERY_RESULT_BACKEND`.  When running a worker locally, ensure these variables point to a RabbitMQ instance or use the defaults defined in `app/core/config.py`.
+- To run the full test suite locally, ensure Docker is installed and
+  available.  Then execute `python -m pytest`.  To run only unit
+  tests without starting Docker, use `pytest -m "not postgres"`.
 
 ## [2025-12-28] – Fix Pydantic Config & Telemetry Initialization
 
