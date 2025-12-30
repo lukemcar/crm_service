@@ -9,16 +9,16 @@ from each underlying module.
 
 from .common import EventEnvelope
 from .contact_event import (
-    ContactBaseMessage,
-    ContactCreatedMessage,
-    ContactUpdatedMessage,
-    ContactDeletedMessage,
+    ContactCreatedEvent,
+    ContactUpdatedEvent,
+    ContactDeletedEvent,
+    ContactDelta,
 )
 from .company_event import (
-    CompanyBaseMessage,
-    CompanyCreatedMessage,
-    CompanyUpdatedMessage,
-    CompanyDeletedMessage,
+    CompanyCreatedEvent,
+    CompanyUpdatedEvent,
+    CompanyDeletedEvent,
+    CompanyDelta,
 )
 from .pipeline_event import (
     PipelineBaseMessage,
@@ -65,15 +65,15 @@ __all__ = [
     # Common envelope
     "EventEnvelope",
     # Contacts
-    "ContactBaseMessage",
-    "ContactCreatedMessage",
-    "ContactUpdatedMessage",
-    "ContactDeletedMessage",
+    "ContactCreatedEvent",
+    "ContactUpdatedEvent",
+    "ContactDeletedEvent",
+    "ContactDelta",
     # Companies
-    "CompanyBaseMessage",
-    "CompanyCreatedMessage",
-    "CompanyUpdatedMessage",
-    "CompanyDeletedMessage",
+    "CompanyCreatedEvent",
+    "CompanyUpdatedEvent",
+    "CompanyDeletedEvent",
+    "CompanyDelta",
     # Pipelines
     "PipelineBaseMessage",
     "PipelineCreatedMessage",

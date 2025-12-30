@@ -103,3 +103,35 @@ class Company(Base):
 
     def __repr__(self) -> str:
         return f"<Company id={self.id} tenant_id={self.tenant_id} name={self.company_name}>"
+
+    # -----------------------------------------------------------------
+    # Convenience properties
+    # -----------------------------------------------------------------
+    @property
+    def name(self) -> str:
+        """Alias for the company name used by Pydantic schemas.
+
+        The external API refers to the company name as ``name``.  The
+        underlying database column is ``company_name``.  Expose a
+        read/write alias so that response models can access the name
+        attribute via ``from_attributes=True``.
+        """
+        return self.company_name
+
+    @name.setter
+    def name(self, value: str) -> None:
+        self.company_name = value
+
+    @property
+    def website(self) -> Optional[str]:
+        """Alias for the company website/domain used by Pydantic schemas.
+
+        The API refers to the domain as ``website`` to align with
+        user terminology.  The underlying column is ``domain``.  This
+        property exposes a read/write alias.
+        """
+        return self.domain
+
+    @website.setter
+    def website(self, value: Optional[str]) -> None:
+        self.domain = value

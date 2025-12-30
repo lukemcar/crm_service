@@ -99,3 +99,10 @@ class ContactDeletedEvent(BaseModel):
 
     tenant_id: UUID = Field(..., description="Tenant identifier")
     deleted_dt: Optional[str] = Field(None, description="ISO timestamp of when the contact was deleted")
+
+__all__ = [
+    "ContactCreatedEvent",
+    "ContactUpdatedEvent",
+    "ContactDeletedEvent",
+    "ContactDelta",
+]

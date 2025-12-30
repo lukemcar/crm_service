@@ -49,7 +49,7 @@ def list_leads_endpoint(
     are ordered by creation date descending and wrapped in a pagination
     envelope.
     """
-    leads, total = lead_service.service_list_leads(
+    leads, total = lead_service.list_leads(
         db,
         tenant_id=tenant_id,
         first_name=first_name,
@@ -77,7 +77,7 @@ def create_lead_endpoint(
     to ``"anonymous"``.
     """
     created_user = x_user or "anonymous"
-    lead = lead_service.service_create_lead(
+    lead = lead_service.create_lead(
         db,
         tenant_id=tenant_id,
         lead_in=lead_in,
@@ -100,7 +100,7 @@ def update_lead_endpoint(
     the lead.  Missing fields will be set to ``null``.
     """
     modified_user = x_user or "anonymous"
-    lead = lead_service.service_update_lead(
+    lead = lead_service.update_lead(
         db,
         tenant_id=tenant_id,
         lead_id=lead_id,
@@ -126,7 +126,7 @@ def patch_lead_endpoint(
     a 400 error.
     """
     modified_user = x_user or "anonymous"
-    lead = lead_service.service_patch_lead(
+    lead = lead_service.patch_lead(
         db,
         tenant_id=tenant_id,
         lead_id=lead_id,
@@ -147,6 +147,6 @@ def delete_lead_endpoint(
     Returns HTTP 204 on success.  Raises 404 if the lead does not
     exist or does not belong to the tenant.
     """
-    lead_service.service_delete_lead(db, tenant_id=tenant_id, lead_id=lead_id)
+    lead_service.delete_lead(db, tenant_id=tenant_id, lead_id=lead_id)
     # FastAPI will automatically return a 204 response when None is returned
     return None

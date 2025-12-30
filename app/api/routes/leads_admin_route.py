@@ -22,12 +22,7 @@ from app.domain.schemas.lead import CreateLead, UpdateLead, LeadOut
 from app.domain.schemas.json_patch import JsonPatchRequest
 from app.domain.schemas.common import PaginationEnvelope
 
-try:
-    # Dependency injection from the existing project structure
-    from app.api.deps import get_db  # type: ignore
-except ImportError:
-    def get_db():
-        raise RuntimeError("Database dependency not configured")
+from app.core.db import get_db
 
 
 router = APIRouter(

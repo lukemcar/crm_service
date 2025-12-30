@@ -24,23 +24,18 @@ from typing import Any, Dict, Iterable, List, Optional, Tuple
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
-try:
-    # Attempt to import the company model.  In a full project this would
-    # reside in the domain/models package.  If it is not available in
-    # this trimmed context an ImportError will be raised.
-    from company import Company  # type: ignore
-except Exception:  # pragma: no cover - fallback for missing model in this context
-    Company = None  # type: ignore
+# Import the CRM domain models rather than relying on placeholder names.
+from app.domain.models.company import Company
+from app.domain.models.company_phone import CompanyPhone
+from app.domain.models.company_email import CompanyEmail
+from app.domain.models.company_address import CompanyAddress
+from app.domain.models.company_social_profile import CompanySocialProfile
+from app.domain.models.company_note import CompanyNote
+from app.domain.models.company_relationship import CompanyRelationship
+from app.domain.models.contact_company_relationship import ContactCompanyRelationship
 
-from company_phone import CompanyPhone
-from company_email import CompanyEmail
-from company_address import CompanyAddress
-from company_social_profile import CompanySocialProfile
-from company_note import CompanyNote
-from company_relationship import CompanyRelationship
-from contact_company_relationship import ContactCompanyRelationship
-
-from pydantic.company_models import (
+# Import the Pydantic schemas for companies from the CRM package.
+from app.domain.schemas.company import (
     TenantCreateCompany,
     AdminCreateCompany,
     CompanySearchCriteria,
@@ -60,15 +55,16 @@ from pydantic.company_models import (
     CompanyContactRelationshipUpdateRequest,
 )
 
-from company_events import CompanyDelta
-from company_producer import CompanyMessageProducer as CompanyProducer
-from company_relationship_producer import (
+# Import event models and message producers from their correct locations.
+from app.domain.schemas.events.company_event import CompanyDelta
+from app.messaging.producers.company_producer import CompanyMessageProducer as CompanyProducer
+from app.messaging.producers.company_relationship_producer import (
     CompanyRelationshipMessageProducer as CompanyRelationshipProducer,
 )
-from contact_company_relationship_producer import (
+from app.messaging.producers.contact_company_relationship_producer import (
     ContactCompanyRelationshipMessageProducer as ContactCompanyRelationshipProducer,
 )
-from json_patch import JsonPatchRequest, JsonPatchOperation
+from app.domain.schemas.json_patch import JsonPatchRequest, JsonPatchOperation
 
 logger = logging.getLogger("company_service")
 
@@ -254,7 +250,9 @@ def list_companies(
     if tenant_id:
         query = query.filter(Company.tenant_id == tenant_id)
     if name:
-        query = query.filter(Company.name.ilike(f"%{name}%"))
+        # The Company model uses ``company_name`` instead of ``name``.  Use
+        # the correct attribute for case‑insensitive matching.
+        query = query.filter(Company.company_name.ilike(f"%{name}%"))
     # Join to phones/emails for search
     if phone:
         query = query.join(Company.phones).filter(
@@ -264,17 +262,16 @@ def list_companies(
     if email:
         query = query.join(Company.emails).filter(CompanyEmail.email.ilike(f"%{email}%"))
     if contact_name:
-        # Join through contact_company_relationship to contacts
+        # Join through contact_company_relationship to contacts to perform name
+        # matching.  Import the Contact model from the CRM package rather
+        # than relying on a fallback.  Filter on first_name and last_name
+        # attributes for case‑insensitive matches.
         query = query.join(Company.contact_relationships).join(ContactCompanyRelationship.contact)
-        # Assume Contact has first_name/last_name attributes
-        try:
-            from contact import Contact  # type: ignore
-            query = query.filter(
-                (Contact.first_name.ilike(f"%{contact_name}%"))
-                | (Contact.last_name.ilike(f"%{contact_name}%"))
-            )
-        except Exception:
-            pass
+        from app.domain.models.contact import Contact  # type: ignore  # circular import safe at runtime
+        query = query.filter(
+            (Contact.first_name.ilike(f"%{contact_name}%"))
+            | (Contact.last_name.ilike(f"%{contact_name}%"))
+        )
     total = query.count()
     if limit is not None:
         query = query.limit(limit)
@@ -307,14 +304,20 @@ def create_company(
     """Create a new company along with any nested collections."""
     if Company is None:
         raise HTTPException(status_code=500, detail="Company model not loaded")
-    # Instantiate base company
+    # Instantiate base company.
+    #
+    # The ORM Company model defines ``company_name`` and ``domain`` rather than
+    # ``name`` and ``website``.  Map the incoming Pydantic fields to the
+    # corresponding ORM attributes.  The ``id`` column is generated by
+    # default, so it is not explicitly set here.  Audit timestamps are
+    # populated manually to align with the rest of the service functions.
     company = Company(
-        id=uuid.uuid4(),
         tenant_id=tenant_id,
-        name=request.name,
-        legal_name=getattr(request, "legal_name", None),
+        company_name=request.name,
+        domain=getattr(request, "website", None),
         industry=getattr(request, "industry", None),
-        website=getattr(request, "website", None),
+        created_at=datetime.utcnow(),
+        updated_at=datetime.utcnow(),
         created_by=created_by,
         updated_by=created_by,
     )
@@ -435,23 +438,37 @@ def patch_company(
 
     # Handlers for base and collection
     def handle_base_patch(field_name: str, operation: JsonPatchOperation) -> None:
+        """
+        Handle JSON Patch operations for top‑level company fields.
+
+        The external API uses field names defined in the Pydantic models
+        (e.g. ``name`` and ``website``) whereas the ORM model uses
+        ``company_name`` and ``domain``.  Translate incoming field
+        names to the ORM attributes before applying changes.
+        """
+        # Map external field names to internal ORM attributes
+        field_map = {
+            "name": "company_name",
+            "website": "domain",
+        }
+        internal_field = field_map.get(field_name, field_name)
         if operation.op in ("add", "replace"):
-            if not hasattr(company, field_name):
+            if not hasattr(company, internal_field):
                 raise HTTPException(status_code=400, detail=f"Invalid field: {field_name}")
-            old_val = getattr(company, field_name)
+            old_val = getattr(company, internal_field)
             new_val = operation.value
-            setattr(company, field_name, new_val)
+            setattr(company, internal_field, new_val)
             if old_val != new_val:
                 if delta.base_fields is None:
                     delta.base_fields = {}
-                delta.base_fields[field_name] = new_val
+                delta.base_fields[internal_field] = new_val
         elif operation.op == "remove":
-            if not hasattr(company, field_name):
+            if not hasattr(company, internal_field):
                 raise HTTPException(status_code=400, detail=f"Invalid field: {field_name}")
-            setattr(company, field_name, None)
+            setattr(company, internal_field, None)
             if delta.base_fields is None:
                 delta.base_fields = {}
-            delta.base_fields[field_name] = None
+            delta.base_fields[internal_field] = None
         else:
             raise HTTPException(status_code=400, detail=f"Unsupported op: {operation.op}")
 

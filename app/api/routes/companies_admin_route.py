@@ -18,25 +18,21 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Header, Query, status
 from sqlalchemy.orm import Session
 
-from company_service import (
+from app.domain.services.company_service import (
     list_companies as service_list_companies,
     create_company as service_create_company,
     patch_company as service_patch_company,
     get_company as service_get_company,
     delete_company as service_delete_company,
 )
-from pydantic.company_models import (
+from app.domain.schemas.company import (
     AdminCreateCompany,
     CompanyOut,
 )
-from json_patch import JsonPatchRequest
-from common import PaginationEnvelope
+from app.domain.schemas.json_patch import JsonPatchRequest
+from app.domain.schemas.common import PaginationEnvelope
 
-try:
-    from app.api.deps import get_db  # type: ignore
-except ImportError:  # pragma: no cover - fallback for standalone use
-    def get_db():
-        raise RuntimeError("Database dependency not configured")
+from app.core.db import get_db
 
 
 router = APIRouter(

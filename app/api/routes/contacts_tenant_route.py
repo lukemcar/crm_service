@@ -15,26 +15,22 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
-from contact_service import (
+from app.domain.services.contact_service import (
     list_contacts as service_list_contacts,
     get_contact as service_get_contact,
     create_contact as service_create_contact,
     patch_contact as service_patch_contact,
     delete_contact as service_delete_contact,
 )
-from pydantic.contact_models import (
+from app.domain.schemas.contact import (
     TenantCreateContact,
     ContactOut,
     ContactSearchCriteria,
 )
-from json_patch import JsonPatchRequest
-from common import PaginationEnvelope
+from app.domain.schemas.json_patch import JsonPatchRequest
+from app.domain.schemas.common import PaginationEnvelope
 
-try:
-    from app.api.deps import get_db  # type: ignore
-except ImportError:
-    def get_db():  # pragma: no cover
-        raise HTTPException(status_code=500, detail="Database dependency not configured")
+from app.core.db import get_db
 
 
 router = APIRouter(prefix="/tenants/{tenant_id}/contacts", tags=["Contacts"])

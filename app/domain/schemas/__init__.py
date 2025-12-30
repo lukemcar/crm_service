@@ -5,8 +5,76 @@ without needing to know individual module names.  Add new models to
 this file as they are created.
 """
 
-from .contact import ContactCreate, ContactUpdate, ContactRead
-from .company import CompanyCreate, CompanyUpdate, CompanyRead
+from .contact import (
+    # Base
+    ContactBase,
+    TenantCreateContact,
+    AdminCreateContact,
+    # Search and list
+    ContactSearchCriteria,
+    # Nested request/response models
+    ContactPhoneNumberCreateRequest,
+    ContactPhoneNumberUpdateRequest,
+    ContactPhoneNumberResponse,
+    ContactEmailCreateRequest,
+    ContactEmailUpdateRequest,
+    ContactEmailResponse,
+    ContactAddressCreateRequest,
+    ContactAddressUpdateRequest,
+    ContactAddressResponse,
+    ContactSocialProfileCreateRequest,
+    ContactSocialProfileUpdateRequest,
+    ContactSocialProfileResponse,
+    ContactNoteCreateRequest,
+    ContactNoteUpdateRequest,
+    ContactNoteResponse,
+    ContactCompanyRelationshipCreateRequest,
+    ContactCompanyRelationshipUpdateRequest,
+    ContactCompanyRelationshipResponse,
+    # Response models
+    ContactOut,
+)
+from .company import (
+    # Base
+    CompanyBase,
+    TenantCreateCompany,
+    AdminCreateCompany,
+    # Search and list
+    CompanySearchCriteria,
+    # Nested request/response models
+    CompanyPhoneNumberCreateRequest,
+    CompanyPhoneNumberUpdateRequest,
+    CompanyPhoneNumberResponse,
+    CompanyEmailCreateRequest,
+    CompanyEmailUpdateRequest,
+    CompanyEmailResponse,
+    CompanyAddressCreateRequest,
+    CompanyAddressUpdateRequest,
+    CompanyAddressResponse,
+    CompanySocialProfileCreateRequest,
+    CompanySocialProfileUpdateRequest,
+    CompanySocialProfileResponse,
+    CompanyNoteCreateRequest,
+    CompanyNoteUpdateRequest,
+    CompanyNoteResponse,
+    CompanyRelationshipCreateRequest,
+    CompanyRelationshipUpdateRequest,
+    CompanyRelationshipResponse,
+    CompanyContactRelationshipCreateRequest,
+    CompanyContactRelationshipUpdateRequest,
+    CompanyContactRelationshipResponse,
+    # Response models
+    CompanyOut,
+)
+from .lead import (
+    LeadData,
+    LeadAddressValue,
+    LeadNoteValue,
+    LeadBase,
+    CreateLead,
+    UpdateLead,
+    LeadOut,
+)
 from .pipeline import PipelineCreate, PipelineUpdate, PipelineRead
 from .pipeline_stage import (
     PipelineStageCreate,
@@ -20,24 +88,90 @@ from .list_membership import ListMembershipCreate, ListMembershipRead
 from .association import AssociationCreate, AssociationRead
 
 __all__ = [
-    "ContactCreate",
-    "ContactUpdate",
-    "ContactRead",
-    "CompanyCreate",
-    "CompanyUpdate",
-    "CompanyRead",
+    # Lead schemas
+    "LeadData",
+    "LeadAddressValue",
+    "LeadNoteValue",
+    "LeadBase",
+    "CreateLead",
+    "UpdateLead",
+    "LeadOut",
+    # Contact schemas
+    # Base
+    "ContactBase",
+    "TenantCreateContact",
+    "AdminCreateContact",
+    # Search and list
+    "ContactSearchCriteria",
+    # Nested request/response models
+    "ContactPhoneNumberCreateRequest",
+    "ContactPhoneNumberUpdateRequest",
+    "ContactPhoneNumberResponse",
+    "ContactEmailCreateRequest",
+    "ContactEmailUpdateRequest",
+    "ContactEmailResponse",
+    "ContactAddressCreateRequest",
+    "ContactAddressUpdateRequest",
+    "ContactAddressResponse",
+    "ContactSocialProfileCreateRequest",
+    "ContactSocialProfileUpdateRequest",
+    "ContactSocialProfileResponse",
+    "ContactNoteCreateRequest",
+    "ContactNoteUpdateRequest",
+    "ContactNoteResponse",
+    "ContactCompanyRelationshipCreateRequest",
+    "ContactCompanyRelationshipUpdateRequest",
+    "ContactCompanyRelationshipResponse",
+    # Response models
+    "ContactOut",
+    # Company schemas
+    
+    # Base
+    "CompanyBase",
+    "TenantCreateCompany",
+    "AdminCreateCompany",
+    # Search and list
+    "CompanySearchCriteria",
+    # Nested request/response models
+    "CompanyPhoneNumberCreateRequest",
+    "CompanyPhoneNumberUpdateRequest",
+    "CompanyPhoneNumberResponse",
+    "CompanyEmailCreateRequest",
+    "CompanyEmailUpdateRequest",
+    "CompanyEmailResponse",
+    "CompanyAddressCreateRequest",
+    "CompanyAddressUpdateRequest",
+    "CompanyAddressResponse",
+    "CompanySocialProfileCreateRequest",
+    "CompanySocialProfileUpdateRequest",
+    "CompanySocialProfileResponse",
+    "CompanyNoteCreateRequest",
+    "CompanyNoteUpdateRequest",
+    "CompanyNoteResponse",
+    "CompanyRelationshipCreateRequest",
+    "CompanyRelationshipUpdateRequest",
+    "CompanyRelationshipResponse",
+    "CompanyContactRelationshipCreateRequest",
+    "CompanyContactRelationshipUpdateRequest",
+    "CompanyContactRelationshipResponse",
+    # Response models
+    "CompanyOut",
+    # Pipeline schemas
     "PipelineCreate",
     "PipelineUpdate",
     "PipelineRead",
     "PipelineStageCreate",
     "PipelineStageUpdate",
     "PipelineStageRead",
+    # Deal schemas
     "DealCreate",
     "DealUpdate",
     "DealRead",
+    # Activity schemas
     "ActivityCreate",
     "ActivityUpdate",
     "ActivityRead",
+    # List schemas
     "ListCreate",
     "ListUpdate",
     "ListRead",

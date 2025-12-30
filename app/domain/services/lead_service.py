@@ -20,10 +20,10 @@ from typing import Any, Dict, Iterable, List, Optional, Tuple
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
-from lead import Lead  # ORM model
-from lead_producer import LeadMessageProducer as LeadProducer
-from pydantic.lead import CreateLead, UpdateLead  # Pydantic models for request bodies
-from json_patch import JsonPatchRequest, JsonPatchOperation
+from app.domain.models import Lead
+from app.messaging.producers import LeadMessageProducer as LeadProducer
+from app.domain.schemas.lead import CreateLead, UpdateLead
+from app.domain.schemas.json_patch import JsonPatchOperation, JsonPatchRequest
 
 logger = logging.getLogger("lead_service")
 

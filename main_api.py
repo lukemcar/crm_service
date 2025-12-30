@@ -13,7 +13,6 @@ from fastapi import FastAPI
 from app.core.config import Config
 
 from app.api.routes import (
-    company_router,
     pipeline_router,
     pipeline_stage_router,
     deal_router,

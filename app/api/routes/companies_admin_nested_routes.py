@@ -18,7 +18,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
-from company_service import (
+from app.domain.services.company_service import (
     list_company_phones,
     add_company_phone,
     update_company_phone,
@@ -44,7 +44,7 @@ from company_service import (
     update_company_relationship,
     delete_company_relationship,
 )
-from pydantic.company_models import (
+from app.domain.schemas.company import (
     CompanyPhoneNumberCreateRequest,
     CompanyPhoneNumberUpdateRequest,
     CompanyPhoneNumberResponse,
@@ -65,11 +65,7 @@ from pydantic.company_models import (
     CompanyRelationshipResponse,
 )
 
-try:
-    from app.api.deps import get_db  # type: ignore
-except ImportError:  # pragma: no cover - fallback
-    def get_db():
-        raise HTTPException(status_code=500, detail="Database dependency not configured")
+from app.core.db import get_db
 
 
 router = APIRouter(prefix="/companies/{company_id}", tags=["Company Nested Resources"])

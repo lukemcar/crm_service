@@ -5,7 +5,6 @@ that can be included in the FastAPI application.  When adding a new
 entity, import its router here.
 """
 
-from .company import router as company_router
 from .pipeline import router as pipeline_router
 from .pipeline_stage import router as pipeline_stage_router
 from .deal import router as deal_router

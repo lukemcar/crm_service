@@ -95,3 +95,11 @@ class CompanyDeletedEvent(BaseModel):
 
     tenant_id: UUID = Field(..., description="Tenant identifier")
     deleted_dt: Optional[str] = Field(None, description="ISO timestamp of when the company was deleted")
+
+
+__all__ = [
+    "CompanyCreatedEvent",
+    "CompanyUpdatedEvent",
+    "CompanyDeletedEvent",
+    "CompanyDelta",
+]
