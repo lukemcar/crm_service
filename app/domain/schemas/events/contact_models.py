@@ -19,6 +19,36 @@ from typing import List, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
+__all__ = [
+    # Base
+    "ContactBase",
+    "TenantCreateContact",
+    "AdminCreateContact",
+    # Search and list
+    "ContactSearchCriteria",
+    # Nested request/response models
+    "ContactPhoneNumberCreateRequest",
+    "ContactPhoneNumberUpdateRequest",
+    "ContactPhoneNumberResponse",
+    "ContactEmailCreateRequest",
+    "ContactEmailUpdateRequest",
+    "ContactEmailResponse",
+    "ContactAddressCreateRequest",
+    "ContactAddressUpdateRequest",
+    "ContactAddressResponse",
+    "ContactSocialProfileCreateRequest",
+    "ContactSocialProfileUpdateRequest",
+    "ContactSocialProfileResponse",
+    "ContactNoteCreateRequest",
+    "ContactNoteUpdateRequest",
+    "ContactNoteResponse",
+    "ContactCompanyRelationshipCreateRequest",
+    "ContactCompanyRelationshipUpdateRequest",
+    "ContactCompanyRelationshipResponse",
+    # Response models
+    "ContactOut",
+]
+
 
 # ---------------------------------------------------------------------------
 # Nested resource models
@@ -344,35 +374,3 @@ class ContactOut(ContactBase):
     company_relationships: List[ContactCompanyRelationshipResponse] = Field(default_factory=list)
 
     model_config = ConfigDict(from_attributes=True, extra="ignore")
-    
-
-
-__all__ = [
-    # Base
-    "ContactBase",
-    "TenantCreateContact",
-    "AdminCreateContact",
-    # Search and list
-    "ContactSearchCriteria",
-    # Nested request/response models
-    "ContactPhoneNumberCreateRequest",
-    "ContactPhoneNumberUpdateRequest",
-    "ContactPhoneNumberResponse",
-    "ContactEmailCreateRequest",
-    "ContactEmailUpdateRequest",
-    "ContactEmailResponse",
-    "ContactAddressCreateRequest",
-    "ContactAddressUpdateRequest",
-    "ContactAddressResponse",
-    "ContactSocialProfileCreateRequest",
-    "ContactSocialProfileUpdateRequest",
-    "ContactSocialProfileResponse",
-    "ContactNoteCreateRequest",
-    "ContactNoteUpdateRequest",
-    "ContactNoteResponse",
-    "ContactCompanyRelationshipCreateRequest",
-    "ContactCompanyRelationshipUpdateRequest",
-    "ContactCompanyRelationshipResponse",
-    # Response models
-    "ContactOut",
-]

@@ -1,14 +1,16 @@
 """
-Pydantic models for Contact API endpoints.
+Pydantic models for Company API endpoints.
 
-This module defines request and response schemas used by the Contact
+This module defines request and response schemas used by the Company
 service and its nested resources.  Models enforce validation for
-contact base attributes and nested collections such as phone numbers,
-emails, addresses, social profiles, notes and company relationships.
+company base attributes and nested collections such as phone numbers,
+emails, addresses, social profiles, and notes.  Relationship models
+cover both company‑to‑company relationships and contact‑company
+relationships (company contacts endpoint).
 
 Tenant and Admin create/update variants are provided along with
 search and pagination criteria.  Response models include nested
-objects to provide a complete view of a contact.
+objects to provide a complete view of a company.
 """
 
 from __future__ import annotations
@@ -19,40 +21,76 @@ from typing import List, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
+__all__ = [
+    # Base
+    "CompanyBase",
+    "TenantCreateCompany",
+    "AdminCreateCompany",
+    # Search and list
+    "CompanySearchCriteria",
+    # Nested request/response models
+    "CompanyPhoneNumberCreateRequest",
+    "CompanyPhoneNumberUpdateRequest",
+    "CompanyPhoneNumberResponse",
+    "CompanyEmailCreateRequest",
+    "CompanyEmailUpdateRequest",
+    "CompanyEmailResponse",
+    "CompanyAddressCreateRequest",
+    "CompanyAddressUpdateRequest",
+    "CompanyAddressResponse",
+    "CompanySocialProfileCreateRequest",
+    "CompanySocialProfileUpdateRequest",
+    "CompanySocialProfileResponse",
+    "CompanyNoteCreateRequest",
+    "CompanyNoteUpdateRequest",
+    "CompanyNoteResponse",
+    "CompanyRelationshipCreateRequest",
+    "CompanyRelationshipUpdateRequest",
+    "CompanyRelationshipResponse",
+    "CompanyContactRelationshipCreateRequest",
+    "CompanyContactRelationshipUpdateRequest",
+    "CompanyContactRelationshipResponse",
+    # Response models
+    "CompanyOut",
+]
+
 
 # ---------------------------------------------------------------------------
 # Nested resource models
 # ---------------------------------------------------------------------------
 
 
-class ContactPhoneNumberCreateRequest(BaseModel):
-    """Request model for creating a contact phone number."""
+class CompanyPhoneNumberCreateRequest(BaseModel):
+    """Request model for creating a company phone number."""
 
     phone_raw: str = Field(..., max_length=50)
     phone_e164: Optional[str] = Field(default=None, max_length=20)
-    phone_type: Optional[str] = Field(default="mobile", max_length=50)
+    phone_ext: Optional[str] = Field(default=None, max_length=20)
+    phone_type: Optional[str] = Field(default="main", max_length=50)
     is_primary: Optional[bool] = Field(default=False)
     is_sms_capable: Optional[bool] = Field(default=False)
     is_verified: Optional[bool] = Field(default=False)
 
 
-class ContactPhoneNumberUpdateRequest(BaseModel):
-    """Request model for updating a contact phone number."""
+class CompanyPhoneNumberUpdateRequest(BaseModel):
+    """Request model for updating a company phone number."""
 
     phone_raw: Optional[str] = Field(default=None, max_length=50)
     phone_e164: Optional[str] = Field(default=None, max_length=20)
+    phone_ext: Optional[str] = Field(default=None, max_length=20)
     phone_type: Optional[str] = Field(default=None, max_length=50)
     is_primary: Optional[bool] = None
     is_sms_capable: Optional[bool] = None
     is_verified: Optional[bool] = None
 
 
-class ContactPhoneNumberResponse(BaseModel):
-    """Response model representing a contact phone number."""
+class CompanyPhoneNumberResponse(BaseModel):
+    """Response model representing a company phone number."""
 
     id: uuid.UUID
     phone_raw: str
     phone_e164: Optional[str] = None
+    phone_ext: Optional[str] = None
     phone_type: str
     is_primary: bool
     is_sms_capable: bool
@@ -60,14 +98,14 @@ class ContactPhoneNumberResponse(BaseModel):
     verified_at: Optional[datetime] = None
     created_at: datetime
     updated_at: datetime
-    created_by: Optional[uuid.UUID] = None
-    updated_by: Optional[uuid.UUID] = None
+    created_by: Optional[str] = None
+    updated_by: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True, extra="ignore")
 
 
-class ContactEmailCreateRequest(BaseModel):
-    """Request model for creating a contact email."""
+class CompanyEmailCreateRequest(BaseModel):
+    """Request model for creating a company email."""
 
     email: str = Field(..., max_length=255)
     email_type: Optional[str] = Field(default="work", max_length=50)
@@ -75,8 +113,8 @@ class ContactEmailCreateRequest(BaseModel):
     is_verified: Optional[bool] = Field(default=False)
 
 
-class ContactEmailUpdateRequest(BaseModel):
-    """Request model for updating a contact email."""
+class CompanyEmailUpdateRequest(BaseModel):
+    """Request model for updating a company email."""
 
     email: Optional[str] = Field(default=None, max_length=255)
     email_type: Optional[str] = Field(default=None, max_length=50)
@@ -84,8 +122,8 @@ class ContactEmailUpdateRequest(BaseModel):
     is_verified: Optional[bool] = None
 
 
-class ContactEmailResponse(BaseModel):
-    """Response model representing a contact email."""
+class CompanyEmailResponse(BaseModel):
+    """Response model representing a company email."""
 
     id: uuid.UUID
     email: str
@@ -95,16 +133,16 @@ class ContactEmailResponse(BaseModel):
     verified_at: Optional[datetime] = None
     created_at: datetime
     updated_at: datetime
-    created_by: Optional[uuid.UUID] = None
-    updated_by: Optional[uuid.UUID] = None
+    created_by: Optional[str] = None
+    updated_by: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True, extra="ignore")
 
 
-class ContactAddressCreateRequest(BaseModel):
-    """Request model for creating a contact address."""
+class CompanyAddressCreateRequest(BaseModel):
+    """Request model for creating a company address."""
 
-    address_type: Optional[str] = Field(default="home", max_length=50)
+    address_type: Optional[str] = Field(default="office", max_length=50)
     label: Optional[str] = Field(default=None, max_length=100)
     is_primary: Optional[bool] = Field(default=False)
     line1: str = Field(..., max_length=255)
@@ -116,8 +154,8 @@ class ContactAddressCreateRequest(BaseModel):
     country_code: Optional[str] = Field(default="US", max_length=2)
 
 
-class ContactAddressUpdateRequest(BaseModel):
-    """Request model for updating a contact address."""
+class CompanyAddressUpdateRequest(BaseModel):
+    """Request model for updating a company address."""
 
     address_type: Optional[str] = Field(default=None, max_length=50)
     label: Optional[str] = Field(default=None, max_length=100)
@@ -131,8 +169,8 @@ class ContactAddressUpdateRequest(BaseModel):
     country_code: Optional[str] = Field(default=None, max_length=2)
 
 
-class ContactAddressResponse(BaseModel):
-    """Response model representing a contact address."""
+class CompanyAddressResponse(BaseModel):
+    """Response model representing a company address."""
 
     id: uuid.UUID
     address_type: str
@@ -147,42 +185,42 @@ class ContactAddressResponse(BaseModel):
     country_code: str
     created_at: datetime
     updated_at: datetime
-    created_by: Optional[uuid.UUID] = None
-    updated_by: Optional[uuid.UUID] = None
+    created_by: Optional[str] = None
+    updated_by: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True, extra="ignore")
 
 
-class ContactSocialProfileCreateRequest(BaseModel):
-    """Request model for creating a contact social profile."""
+class CompanySocialProfileCreateRequest(BaseModel):
+    """Request model for creating a company social profile."""
 
     profile_type: str = Field(..., max_length=50)
     profile_url: str = Field(..., max_length=255)
 
 
-class ContactSocialProfileUpdateRequest(BaseModel):
-    """Request model for updating a contact social profile."""
+class CompanySocialProfileUpdateRequest(BaseModel):
+    """Request model for updating a company social profile."""
 
     profile_type: Optional[str] = Field(default=None, max_length=50)
     profile_url: Optional[str] = Field(default=None, max_length=255)
 
 
-class ContactSocialProfileResponse(BaseModel):
-    """Response model representing a contact social profile."""
+class CompanySocialProfileResponse(BaseModel):
+    """Response model representing a company social profile."""
 
     id: uuid.UUID
     profile_type: str
     profile_url: str
     created_at: datetime
     updated_at: datetime
-    created_by: Optional[uuid.UUID] = None
-    updated_by: Optional[uuid.UUID] = None
+    created_by: Optional[str] = None
+    updated_by: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True, extra="ignore")
 
 
-class ContactNoteCreateRequest(BaseModel):
-    """Request model for creating a contact note."""
+class CompanyNoteCreateRequest(BaseModel):
+    """Request model for creating a company note."""
 
     note_type: Optional[str] = Field(default="note", max_length=50)
     title: Optional[str] = Field(default=None, max_length=255)
@@ -192,8 +230,8 @@ class ContactNoteCreateRequest(BaseModel):
     source_ref: Optional[str] = Field(default=None, max_length=255)
 
 
-class ContactNoteUpdateRequest(BaseModel):
-    """Request model for updating a contact note."""
+class CompanyNoteUpdateRequest(BaseModel):
+    """Request model for updating a company note."""
 
     note_type: Optional[str] = Field(default=None, max_length=50)
     title: Optional[str] = Field(default=None, max_length=255)
@@ -203,8 +241,8 @@ class ContactNoteUpdateRequest(BaseModel):
     source_ref: Optional[str] = Field(default=None, max_length=255)
 
 
-class ContactNoteResponse(BaseModel):
-    """Response model representing a contact note."""
+class CompanyNoteResponse(BaseModel):
+    """Response model representing a company note."""
 
     id: uuid.UUID
     note_type: str
@@ -215,16 +253,59 @@ class ContactNoteResponse(BaseModel):
     source_ref: Optional[str] = None
     created_at: datetime
     updated_at: datetime
-    created_by: Optional[uuid.UUID] = None
-    updated_by: Optional[uuid.UUID] = None
+    created_by: Optional[str] = None
+    updated_by: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True, extra="ignore")
 
 
-class ContactCompanyRelationshipCreateRequest(BaseModel):
-    """Request model for creating a contact-company relationship."""
+class CompanyRelationshipCreateRequest(BaseModel):
+    """Request model for creating a company‑to‑company relationship."""
 
-    company_id: uuid.UUID
+    to_company_id: uuid.UUID
+    from_role: str = Field(..., max_length=50)
+    to_role: str = Field(..., max_length=50)
+    is_active: Optional[bool] = Field(default=True)
+    start_date: Optional[date] = None
+    end_date: Optional[date] = None
+    notes: Optional[str] = Field(default=None, max_length=500)
+
+
+class CompanyRelationshipUpdateRequest(BaseModel):
+    """Request model for updating a company‑to‑company relationship."""
+
+    from_role: Optional[str] = Field(default=None, max_length=50)
+    to_role: Optional[str] = Field(default=None, max_length=50)
+    is_active: Optional[bool] = None
+    start_date: Optional[date] = None
+    end_date: Optional[date] = None
+    notes: Optional[str] = Field(default=None, max_length=500)
+
+
+class CompanyRelationshipResponse(BaseModel):
+    """Response model representing a company‑to‑company relationship."""
+
+    id: uuid.UUID
+    from_company_id: uuid.UUID
+    to_company_id: uuid.UUID
+    from_role: str
+    to_role: str
+    is_active: bool
+    start_date: Optional[date] = None
+    end_date: Optional[date] = None
+    notes: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
+    created_by: Optional[str] = None
+    updated_by: Optional[str] = None
+
+    model_config = ConfigDict(from_attributes=True, extra="ignore")
+
+
+class CompanyContactRelationshipCreateRequest(BaseModel):
+    """Request model for creating a contact‑company relationship via the company endpoint."""
+
+    contact_id: uuid.UUID
     relationship_type: str = Field(..., max_length=50)
     department: Optional[str] = Field(default=None, max_length=100)
     job_title: Optional[str] = Field(default=None, max_length=255)
@@ -238,8 +319,8 @@ class ContactCompanyRelationshipCreateRequest(BaseModel):
     is_active: Optional[bool] = Field(default=True)
 
 
-class ContactCompanyRelationshipUpdateRequest(BaseModel):
-    """Request model for updating a contact-company relationship."""
+class CompanyContactRelationshipUpdateRequest(BaseModel):
+    """Request model for updating a contact‑company relationship via the company endpoint."""
 
     relationship_type: Optional[str] = Field(default=None, max_length=50)
     department: Optional[str] = Field(default=None, max_length=100)
@@ -254,10 +335,11 @@ class ContactCompanyRelationshipUpdateRequest(BaseModel):
     is_active: Optional[bool] = None
 
 
-class ContactCompanyRelationshipResponse(BaseModel):
-    """Response model representing a contact-company relationship."""
+class CompanyContactRelationshipResponse(BaseModel):
+    """Response model representing a contact‑company relationship from the company perspective."""
 
     id: uuid.UUID
+    contact_id: uuid.UUID
     company_id: uuid.UUID
     relationship_type: str
     department: Optional[str] = None
@@ -279,56 +361,57 @@ class ContactCompanyRelationshipResponse(BaseModel):
 
 
 # ---------------------------------------------------------------------------
-# Contact base and create models
+# Company base and create models
 # ---------------------------------------------------------------------------
 
 
-class ContactBase(BaseModel):
-    """Base fields for a contact."""
+class CompanyBase(BaseModel):
+    """Base fields for a company."""
 
-    first_name: Optional[str] = Field(default=None, max_length=100)
-    middle_name: Optional[str] = Field(default=None, max_length=100)
-    last_name: Optional[str] = Field(default=None, max_length=100)
-    job_title: Optional[str] = Field(default=None, max_length=255)
+    name: Optional[str] = Field(default=None, max_length=255)
+    legal_name: Optional[str] = Field(default=None, max_length=255)
+    industry: Optional[str] = Field(default=None, max_length=100)
+    website: Optional[str] = Field(default=None, max_length=255)
 
 
-class TenantCreateContact(ContactBase):
-    """Model for creating a contact within a tenant.
+class TenantCreateCompany(CompanyBase):
+    """Model for creating a company within a tenant.
 
     Nested collections may be supplied to create associated phone numbers,
     emails, addresses, social profiles and notes.  Company relationships
-    should be created via the dedicated relationship endpoints.
+    and contact relationships should be created via the dedicated
+    relationship endpoints.
     """
 
-    phones: Optional[List[ContactPhoneNumberCreateRequest]] = None
-    emails: Optional[List[ContactEmailCreateRequest]] = None
-    addresses: Optional[List[ContactAddressCreateRequest]] = None
-    social_profiles: Optional[List[ContactSocialProfileCreateRequest]] = None
-    notes: Optional[List[ContactNoteCreateRequest]] = None
+    name: str = Field(..., max_length=255)
+    phones: Optional[List[CompanyPhoneNumberCreateRequest]] = None
+    emails: Optional[List[CompanyEmailCreateRequest]] = None
+    addresses: Optional[List[CompanyAddressCreateRequest]] = None
+    social_profiles: Optional[List[CompanySocialProfileCreateRequest]] = None
+    notes: Optional[List[CompanyNoteCreateRequest]] = None
 
 
-class AdminCreateContact(TenantCreateContact):
-    """Model for creating a contact via the admin API.
+class AdminCreateCompany(TenantCreateCompany):
+    """Model for creating a company via the admin API.
 
-    Admins must specify the tenant_id when creating a contact.  All
-    other fields mirror TenantCreateContact.
+    Admins must specify the tenant_id when creating a company.  All
+    other fields mirror TenantCreateCompany.
     """
 
     tenant_id: uuid.UUID
 
 
-class ContactSearchCriteria(BaseModel):
-    """Search filters for listing contacts."""
+class CompanySearchCriteria(BaseModel):
+    """Search filters for listing companies."""
 
-    first_name: Optional[str] = None
-    last_name: Optional[str] = None
+    name: Optional[str] = None
     phone: Optional[str] = None
     email: Optional[str] = None
-    company_name: Optional[str] = None
+    contact_name: Optional[str] = None
 
 
-class ContactOut(ContactBase):
-    """Full response model for a contact including nested collections."""
+class CompanyOut(CompanyBase):
+    """Full response model for a company including nested collections."""
 
     id: uuid.UUID
     tenant_id: uuid.UUID
@@ -336,43 +419,12 @@ class ContactOut(ContactBase):
     updated_at: datetime
     created_by: Optional[str] = None
     updated_by: Optional[str] = None
-    phones: List[ContactPhoneNumberResponse] = Field(default_factory=list)
-    emails: List[ContactEmailResponse] = Field(default_factory=list)
-    addresses: List[ContactAddressResponse] = Field(default_factory=list)
-    social_profiles: List[ContactSocialProfileResponse] = Field(default_factory=list)
-    notes: List[ContactNoteResponse] = Field(default_factory=list)
-    company_relationships: List[ContactCompanyRelationshipResponse] = Field(default_factory=list)
+    phones: List[CompanyPhoneNumberResponse] = Field(default_factory=list)
+    emails: List[CompanyEmailResponse] = Field(default_factory=list)
+    addresses: List[CompanyAddressResponse] = Field(default_factory=list)
+    social_profiles: List[CompanySocialProfileResponse] = Field(default_factory=list)
+    notes: List[CompanyNoteResponse] = Field(default_factory=list)
+    relationships: List[CompanyRelationshipResponse] = Field(default_factory=list)
+    contact_relationships: List[CompanyContactRelationshipResponse] = Field(default_factory=list)
 
     model_config = ConfigDict(from_attributes=True, extra="ignore")
-    
-
-
-__all__ = [
-    # Base
-    "ContactBase",
-    "TenantCreateContact",
-    "AdminCreateContact",
-    # Search and list
-    "ContactSearchCriteria",
-    # Nested request/response models
-    "ContactPhoneNumberCreateRequest",
-    "ContactPhoneNumberUpdateRequest",
-    "ContactPhoneNumberResponse",
-    "ContactEmailCreateRequest",
-    "ContactEmailUpdateRequest",
-    "ContactEmailResponse",
-    "ContactAddressCreateRequest",
-    "ContactAddressUpdateRequest",
-    "ContactAddressResponse",
-    "ContactSocialProfileCreateRequest",
-    "ContactSocialProfileUpdateRequest",
-    "ContactSocialProfileResponse",
-    "ContactNoteCreateRequest",
-    "ContactNoteUpdateRequest",
-    "ContactNoteResponse",
-    "ContactCompanyRelationshipCreateRequest",
-    "ContactCompanyRelationshipUpdateRequest",
-    "ContactCompanyRelationshipResponse",
-    # Response models
-    "ContactOut",
-]

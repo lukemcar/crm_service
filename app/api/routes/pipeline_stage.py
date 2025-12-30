@@ -34,7 +34,7 @@ def list_stages(
     pipeline = pipeline_service.get_pipeline(db, pipeline_id, tenant_id)
     if not pipeline:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Pipeline not found")
-    return pipeline_stage_service.list_stages(db, pipeline_id)
+    return pipeline_stage_service.list_stages(db, tenant_id, pipeline_id)
 
 
 @router.post("/{pipeline_id}/stages", response_model=schemas.PipelineStageRead, status_code=status.HTTP_201_CREATED)
@@ -52,7 +52,7 @@ def create_stage(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Pipeline not found")
     # Use provided pipeline_id even if stage_in specifies another; enforce path param
     stage_in_data = stage_in.copy(update={"pipeline_id": pipeline_id})
-    stage = pipeline_stage_service.create_stage(db, user_id, stage_in_data)
+    stage = pipeline_stage_service.create_stage(db, tenant_id, user_id, stage_in_data)
     return stage
 
 

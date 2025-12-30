@@ -13,7 +13,6 @@ from fastapi import FastAPI
 from app.core.config import Config
 
 from app.api.routes import (
-    contact_router,
     company_router,
     pipeline_router,
     pipeline_stage_router,
@@ -24,6 +23,17 @@ from app.api.routes import (
     association_router,
     health_router,
     admin_router,
+    
+    leads_admin_router,
+    leads_tenant_router,
+    contacts_admin_router,
+    contacts_tenant_router,
+    contacts_admin_nested_router,
+    contacts_tenant_nested_router,
+    companies_admin_router,
+    companies_tenant_router,
+    companies_admin_nested_router,
+    companies_tenant_nested_router,    
 )
 
 # Initialise logging and telemetry when the app is created.  Doing
@@ -65,8 +75,16 @@ def create_app() -> FastAPI:
     app = FastAPI(lifespan=lifespan, title="DYNO CRM API", version="0.1.0")
 
     # Include routers
-    app.include_router(contact_router)
-    app.include_router(company_router)
+    app.include_router(contacts_admin_router)
+    app.include_router(contacts_tenant_router)
+    app.include_router(contacts_admin_nested_router)
+    app.include_router(contacts_tenant_nested_router)
+    app.include_router(leads_admin_router)
+    app.include_router(leads_tenant_router)
+    app.include_router(companies_admin_router)
+    app.include_router(companies_tenant_router)
+    app.include_router(companies_admin_nested_router)
+    app.include_router(companies_tenant_nested_router)
     app.include_router(pipeline_router)
     app.include_router(pipeline_stage_router)
     app.include_router(deal_router)

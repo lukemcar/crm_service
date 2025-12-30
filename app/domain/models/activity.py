@@ -19,6 +19,10 @@ from app.core.db import Base
 
 class Activity(Base):
     __tablename__ = "activities"
+    
+    __table_args__ = (
+        {"schema": "dyno_crm"},
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(
         PGUUID(as_uuid=True), primary_key=True, default=uuid.uuid4

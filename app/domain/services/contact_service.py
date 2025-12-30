@@ -1,79 +1,1596 @@
-"""Service layer for Contact operations.
+"""
+Service layer for managing Contact entities and their nested resources.
 
-Encapsulates database interactions and business logic for creating,
-retrieving, updating and deleting contacts.  All functions assume
-tenant scoping; they filter by tenant_id to enforce multi‑tenancy.
+This module provides CRUD operations for contacts along with helpers to
+manage nested collections such as phone numbers, emails, addresses,
+social profiles, notes, and company relationships.  JSON Patch
+operations are supported on both top‑level fields and nested objects.
+Events are emitted after each mutation using dedicated producers.
+
+The contact model is assumed to define relationships named
+``phones``, ``emails``, ``addresses``, ``social_profiles``, ``notes``
+and ``company_relationships``.  Each nested resource has its own
+ORM model defined in the project (see contact_phone.py, etc.).
+
+``ContactUpdatedEvent`` deltas are built to describe granular
+changes.  Company relationship changes do not contribute to the
+contact update delta; instead, separate events are published via
+``ContactCompanyRelationshipMessageProducer``.
 """
 
 from __future__ import annotations
 
+import logging
 import uuid
-from typing import Iterable, Optional
+from datetime import datetime
+from typing import Any, Dict, Iterable, List, Optional, Tuple
 
+from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.domain.models.contact import Contact
-from app.domain.schemas.contact import ContactCreate, ContactUpdate
+try:
+    # Attempt to import the contact model.  In a full project this would
+    # reside in the domain/models package.  If it is not available in
+    # this trimmed context an ImportError will be raised.
+    from contact import Contact  # type: ignore
+except Exception:  # pragma: no cover - fallback for missing model in this context
+    Contact = None  # type: ignore
+
+from contact_phone import ContactPhone
+from contact_email import ContactEmail
+from contact_address import ContactAddress
+from contact_social_profile import ContactSocialProfile
+from contact_note import ContactNote
+from contact_company_relationship import ContactCompanyRelationship
+
+from pydantic.contact_models import (
+    TenantCreateContact,
+    AdminCreateContact,
+    ContactSearchCriteria,
+    ContactPhoneNumberCreateRequest,
+    ContactPhoneNumberUpdateRequest,
+    ContactEmailCreateRequest,
+    ContactEmailUpdateRequest,
+    ContactAddressCreateRequest,
+    ContactAddressUpdateRequest,
+    ContactSocialProfileCreateRequest,
+    ContactSocialProfileUpdateRequest,
+    ContactNoteCreateRequest,
+    ContactNoteUpdateRequest,
+    ContactCompanyRelationshipCreateRequest,
+    ContactCompanyRelationshipUpdateRequest,
+)
+
+from contact_events import ContactDelta
+from contact_producer import ContactMessageProducer as ContactProducer
+from contact_company_relationship_producer import (
+    ContactCompanyRelationshipMessageProducer as RelationshipProducer,
+)
+from json_patch import JsonPatchRequest, JsonPatchOperation
+
+logger = logging.getLogger("contact_service")
 
 
-def list_contacts(db: Session, tenant_id: uuid.UUID) -> Iterable[Contact]:
-    """Return all contacts for the given tenant."""
-    return db.query(Contact).filter(Contact.tenant_id == tenant_id).all()
+# ---------------------------------------------------------------------------
+# Helper functions for snapshots and delta computation
+# ---------------------------------------------------------------------------
 
 
-def get_contact(db: Session, contact_id: uuid.UUID, tenant_id: uuid.UUID) -> Optional[Contact]:
-    """Fetch a single contact by ID within the tenant."""
-    return (
-        db.query(Contact)
-        .filter(Contact.id == contact_id, Contact.tenant_id == tenant_id)
-        .first()
-    )
+def _phone_snapshot(phone: ContactPhone) -> Dict[str, Any]:
+    return {
+        "id": phone.id,
+        "phone_raw": phone.phone_raw,
+        "phone_e164": phone.phone_e164,
+        "phone_type": phone.phone_type,
+        "is_primary": phone.is_primary,
+        "is_sms_capable": phone.is_sms_capable,
+        "is_verified": phone.is_verified,
+        "verified_at": phone.verified_at.isoformat() if phone.verified_at else None,
+        "created_at": phone.created_at.isoformat() if phone.created_at else None,
+        "updated_at": phone.updated_at.isoformat() if phone.updated_at else None,
+        "created_by": str(phone.created_by) if phone.created_by else None,
+        "updated_by": str(phone.updated_by) if phone.updated_by else None,
+    }
+
+
+def _email_snapshot(email: ContactEmail) -> Dict[str, Any]:
+    return {
+        "id": email.id,
+        "email": email.email,
+        "email_type": email.email_type,
+        "is_primary": email.is_primary,
+        "is_verified": email.is_verified,
+        "verified_at": email.verified_at.isoformat() if email.verified_at else None,
+        "created_at": email.created_at.isoformat() if email.created_at else None,
+        "updated_at": email.updated_at.isoformat() if email.updated_at else None,
+        "created_by": str(email.created_by) if email.created_by else None,
+        "updated_by": str(email.updated_by) if email.updated_by else None,
+    }
+
+
+def _address_snapshot(address: ContactAddress) -> Dict[str, Any]:
+    return {
+        "id": address.id,
+        "address_type": address.address_type,
+        "label": address.label,
+        "is_primary": address.is_primary,
+        "line1": address.line1,
+        "line2": address.line2,
+        "line3": address.line3,
+        "city": address.city,
+        "region": address.region,
+        "postal_code": address.postal_code,
+        "country_code": address.country_code,
+        "created_at": address.created_at.isoformat() if address.created_at else None,
+        "updated_at": address.updated_at.isoformat() if address.updated_at else None,
+        "created_by": str(address.created_by) if address.created_by else None,
+        "updated_by": str(address.updated_by) if address.updated_by else None,
+    }
+
+
+def _social_profile_snapshot(profile: ContactSocialProfile) -> Dict[str, Any]:
+    return {
+        "id": profile.id,
+        "profile_type": profile.profile_type,
+        "profile_url": profile.profile_url,
+        "created_at": profile.created_at.isoformat() if profile.created_at else None,
+        "updated_at": profile.updated_at.isoformat() if profile.updated_at else None,
+        "created_by": str(profile.created_by) if profile.created_by else None,
+        "updated_by": str(profile.updated_by) if profile.updated_by else None,
+    }
+
+
+def _note_snapshot(note: ContactNote) -> Dict[str, Any]:
+    return {
+        "id": note.id,
+        "note_type": note.note_type,
+        "title": note.title,
+        "body": note.body,
+        "noted_at": note.noted_at.isoformat() if note.noted_at else None,
+        "source_system": note.source_system,
+        "source_ref": note.source_ref,
+        "created_at": note.created_at.isoformat() if note.created_at else None,
+        "updated_at": note.updated_at.isoformat() if note.updated_at else None,
+        "created_by": str(note.created_by) if note.created_by else None,
+        "updated_by": str(note.updated_by) if note.updated_by else None,
+    }
+
+
+def _company_relationship_snapshot(rel: ContactCompanyRelationship) -> Dict[str, Any]:
+    return {
+        "id": rel.id,
+        "company_id": rel.company_id,
+        "relationship_type": rel.relationship_type,
+        "department": rel.department,
+        "job_title": rel.job_title,
+        "work_email": rel.work_email,
+        "work_phone_raw": rel.work_phone_raw,
+        "work_phone_e164": rel.work_phone_e164,
+        "work_phone_ext": rel.work_phone_ext,
+        "is_primary": rel.is_primary,
+        "start_date": rel.start_date.isoformat() if rel.start_date else None,
+        "end_date": rel.end_date.isoformat() if rel.end_date else None,
+        "is_active": rel.is_active,
+        "created_at": rel.created_at.isoformat() if rel.created_at else None,
+        "updated_at": rel.updated_at.isoformat() if rel.updated_at else None,
+        "created_by": rel.created_by,
+        "updated_by": rel.updated_by,
+    }
+
+
+def _contact_snapshot(contact: Any) -> Dict[str, Any]:
+    """Return a full snapshot of a contact including nested resources.
+
+    The ``contact`` argument may be an ORM instance or any object
+    exposing attributes consistent with the Contact model.
+    """
+    return {
+        "id": contact.id,
+        "tenant_id": contact.tenant_id,
+        "first_name": contact.first_name,
+        "middle_name": contact.middle_name,
+        "last_name": contact.last_name,
+        "job_title": getattr(contact, "job_title", None),
+        "created_at": contact.created_at.isoformat() if contact.created_at else None,
+        "updated_at": contact.updated_at.isoformat() if contact.updated_at else None,
+        "created_by": getattr(contact, "created_by", None),
+        "updated_by": getattr(contact, "updated_by", None),
+        "phones": [_phone_snapshot(p) for p in getattr(contact, "phones", [])],
+        "emails": [_email_snapshot(e) for e in getattr(contact, "emails", [])],
+        "addresses": [_address_snapshot(a) for a in getattr(contact, "addresses", [])],
+        "social_profiles": [
+            _social_profile_snapshot(s) for s in getattr(contact, "social_profiles", [])
+        ],
+        "notes": [_note_snapshot(n) for n in getattr(contact, "notes", [])],
+        "company_relationships": [
+            _company_relationship_snapshot(r) for r in getattr(contact, "company_relationships", [])
+        ],
+    }
+
+
+def _compute_base_changes(old: Any, new: Any) -> Dict[str, Any]:
+    """Compute changes in top‑level fields between two contact objects."""
+    changes: Dict[str, Any] = {}
+    for field in ["first_name", "middle_name", "last_name", "job_title"]:
+        old_val = getattr(old, field, None)
+        new_val = getattr(new, field, None)
+        if old_val != new_val:
+            changes[field] = new_val
+    return changes
+
+
+# ---------------------------------------------------------------------------
+# Service functions for contacts
+# ---------------------------------------------------------------------------
+
+
+def list_contacts(
+    db: Session,
+    *,
+    tenant_id: Optional[uuid.UUID] = None,
+    first_name: Optional[str] = None,
+    last_name: Optional[str] = None,
+    phone: Optional[str] = None,
+    email: Optional[str] = None,
+    company_name: Optional[str] = None,  # Placeholder for future implementation
+    limit: Optional[int] = None,
+    offset: Optional[int] = None,
+) -> Tuple[List[Any], int]:
+    """Return a filtered and paginated list of contacts.
+
+    When ``tenant_id`` is provided, results are scoped to that tenant.
+    Filtering is case‑insensitive and performed on first/last names
+    directly in the database.  Phone and email filters are applied in
+    memory against the nested collections.
+
+    Parameters
+    ----------
+    db: Session
+        Active SQLAlchemy session.
+    tenant_id: UUID | None
+        Tenant to scope results to (required for tenant routes).
+    first_name: str | None
+        Substring to match against the contact's first name.
+    last_name: str | None
+        Substring to match against the contact's last name.
+    phone: str | None
+        Substring to match against any phone_raw or phone_e164 value in
+        the contact's phones.
+    email: str | None
+        Substring to match against any email value in the contact's
+        emails.
+    company_name: str | None
+        Not implemented in this simplified service; reserved for
+        future use.
+    limit: int | None
+        Maximum number of items to return.
+    offset: int | None
+        Number of items to skip from the start of the result set.
+
+    Returns
+    -------
+    list[Contact], int
+        A tuple containing the list of Contact ORM objects and the
+        total number of matching records prior to pagination.
+    """
+    if Contact is None:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Contact model is not available",
+        )
+    query = db.query(Contact)
+    if tenant_id is not None:
+        query = query.filter(Contact.tenant_id == tenant_id)
+    # Name filters
+    if first_name:
+        query = query.filter(Contact.first_name.ilike(f"%{first_name}%"))
+    if last_name:
+        query = query.filter(Contact.last_name.ilike(f"%{last_name}%"))
+    contacts: List[Any] = query.order_by(Contact.created_at.desc()).all()
+    # Filter by phone and email in memory
+    def match_phone(c: Any, pattern: str) -> bool:
+        pat = pattern.lower()
+        for ph in getattr(c, "phones", []):
+            if ph.phone_raw and pat in ph.phone_raw.lower():
+                return True
+            if ph.phone_e164 and pat in ph.phone_e164.lower():
+                return True
+        return False
+
+    def match_email(c: Any, pattern: str) -> bool:
+        pat = pattern.lower()
+        for em in getattr(c, "emails", []):
+            if em.email and pat in em.email.lower():
+                return True
+        return False
+
+    if phone:
+        contacts = [c for c in contacts if match_phone(c, phone)]
+    if email:
+        contacts = [c for c in contacts if match_email(c, email)]
+    total = len(contacts)
+    if offset:
+        contacts = contacts[offset:]
+    if limit is not None:
+        contacts = contacts[:limit]
+    return contacts, total
+
+
+def get_contact(
+    db: Session,
+    *,
+    tenant_id: Optional[uuid.UUID],
+    contact_id: uuid.UUID,
+) -> Any:
+    """Retrieve a single contact by ID with optional tenant scoping.
+
+    If ``tenant_id`` is provided, the contact must belong to that
+    tenant.  Raises 404 if the contact does not exist or is outside
+    the tenant scope.
+    """
+    if Contact is None:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Contact model is not available",
+        )
+    query = db.query(Contact).filter(Contact.id == contact_id)
+    if tenant_id is not None:
+        query = query.filter(Contact.tenant_id == tenant_id)
+    contact: Optional[Any] = query.first()
+    if not contact:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Contact not found")
+    return contact
 
 
 def create_contact(
     db: Session,
+    *,
     tenant_id: uuid.UUID,
-    user_id: Optional[uuid.UUID],
-    contact_in: ContactCreate,
-) -> Contact:
-    """Create a new contact in the given tenant."""
+    request: TenantCreateContact | AdminCreateContact,
+    created_by: Optional[str] = None,
+) -> Any:
+    """Create a new contact with optional nested resources.
+
+    On success, emits a ``contact.created`` event containing a full
+    snapshot of the contact.
+    """
+    if Contact is None:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Contact model is not available",
+        )
+    # Build contact instance
     contact = Contact(
         tenant_id=tenant_id,
-        first_name=contact_in.first_name,
-        last_name=contact_in.last_name,
-        email=contact_in.email,
-        phone=contact_in.phone,
-        created_by=user_id,
-        updated_by=user_id,
+        first_name=request.first_name,
+        middle_name=request.middle_name,
+        last_name=request.last_name,
+        job_title=getattr(request, "job_title", None),
+        created_at=datetime.utcnow(),
+        updated_at=datetime.utcnow(),
+        created_by=created_by,
+        updated_by=created_by,
     )
     db.add(contact)
+    db.flush()  # assign primary key before adding children
+    # Create nested phones
+    for phone_in in request.phones or []:
+        phone = ContactPhone(
+            tenant_id=tenant_id,
+            contact_id=contact.id,
+            phone_raw=phone_in.phone_raw,
+            phone_e164=phone_in.phone_e164,
+            phone_type=phone_in.phone_type or "mobile",
+            is_primary=phone_in.is_primary or False,
+            is_sms_capable=phone_in.is_sms_capable or False,
+            is_verified=phone_in.is_verified or False,
+            created_by=created_by,
+            updated_by=created_by,
+        )
+        db.add(phone)
+    # Create nested emails
+    for email_in in request.emails or []:
+        email = ContactEmail(
+            tenant_id=tenant_id,
+            contact_id=contact.id,
+            email=email_in.email,
+            email_type=email_in.email_type or "work",
+            is_primary=email_in.is_primary or False,
+            is_verified=email_in.is_verified or False,
+            created_by=created_by,
+            updated_by=created_by,
+        )
+        db.add(email)
+    # Create nested addresses
+    for addr_in in request.addresses or []:
+        address = ContactAddress(
+            tenant_id=tenant_id,
+            contact_id=contact.id,
+            address_type=addr_in.address_type or "home",
+            label=addr_in.label,
+            is_primary=addr_in.is_primary or False,
+            line1=addr_in.line1,
+            line2=addr_in.line2,
+            line3=getattr(addr_in, "line3", None),
+            city=addr_in.city,
+            region=addr_in.region,
+            postal_code=addr_in.postal_code,
+            country_code=addr_in.country_code or "US",
+            created_by=created_by,
+            updated_by=created_by,
+        )
+        db.add(address)
+    # Create social profiles
+    for sp_in in request.social_profiles or []:
+        profile = ContactSocialProfile(
+            tenant_id=tenant_id,
+            contact_id=contact.id,
+            profile_type=sp_in.profile_type,
+            profile_url=sp_in.profile_url,
+            created_by=created_by,
+            updated_by=created_by,
+        )
+        db.add(profile)
+    # Create notes
+    for note_in in request.notes or []:
+        note = ContactNote(
+            tenant_id=tenant_id,
+            contact_id=contact.id,
+            note_type=note_in.note_type or "note",
+            title=note_in.title,
+            body=note_in.body,
+            noted_at=note_in.noted_at or datetime.utcnow(),
+            source_system=note_in.source_system,
+            source_ref=note_in.source_ref,
+            created_by=created_by,
+            updated_by=created_by,
+        )
+        db.add(note)
     db.commit()
     db.refresh(contact)
+    logger.info("Created contact %s for tenant %s", contact.id, tenant_id)
+    snapshot = _contact_snapshot(contact)
+    try:
+        ContactProducer.send_contact_created(tenant_id=tenant_id, payload=snapshot)
+    except Exception:
+        logger.exception(
+            "Failed to publish contact.created event tenant_id=%s contact_id=%s",
+            tenant_id,
+            contact.id,
+        )
     return contact
 
 
-def update_contact(
+def delete_contact(
     db: Session,
-    contact: Contact,
-    user_id: Optional[uuid.UUID],
-    contact_in: ContactUpdate,
-) -> Contact:
-    """Update an existing contact.  Only provided fields are updated."""
-    if contact_in.first_name is not None:
-        contact.first_name = contact_in.first_name
-    if contact_in.last_name is not None:
-        contact.last_name = contact_in.last_name
-    if contact_in.email is not None:
-        contact.email = contact_in.email
-    if contact_in.phone is not None:
-        contact.phone = contact_in.phone
-    contact.updated_by = user_id
-    db.commit()
-    db.refresh(contact)
-    return contact
+    *,
+    tenant_id: uuid.UUID,
+    contact_id: uuid.UUID,
+) -> None:
+    """Delete a contact and all nested resources.
 
-
-def delete_contact(db: Session, contact: Contact) -> None:
-    """Delete the contact.  For now perform a hard delete."""
+    Emits a ``contact.deleted`` event after the commit.  If the
+    contact does not exist, a 404 error is raised.
+    """
+    contact = get_contact(db, tenant_id=tenant_id, contact_id=contact_id)
     db.delete(contact)
     db.commit()
+    logger.info("Deleted contact %s for tenant %s", contact_id, tenant_id)
+    try:
+        ContactProducer.send_contact_deleted(
+            tenant_id=tenant_id, deleted_dt=datetime.utcnow().isoformat()
+        )
+    except Exception:
+        logger.exception(
+            "Failed to publish contact.deleted event tenant_id=%s contact_id=%s",
+            tenant_id,
+            contact_id,
+        )
+
+
+# ---------------------------------------------------------------------------
+# JSON Patch handlers
+# ---------------------------------------------------------------------------
+
+
+def patch_contact(
+    db: Session,
+    *,
+    tenant_id: uuid.UUID,
+    contact_id: uuid.UUID,
+    patch_request: JsonPatchRequest,
+    updated_by: Optional[str] = None,
+) -> Any:
+    """Apply a JSON Patch document to a contact.
+
+    Supports updating top‑level attributes as well as nested
+    collections.  Nested objects are identified by their UUID in the
+    path (e.g. ``/phones/<phone_id>/phone_raw``).  Adding new nested
+    objects is supported via a path of ``/phones`` with an object
+    value.
+    """
+    contact = get_contact(db, tenant_id=tenant_id, contact_id=contact_id)
+    # Clone original to compute base changes later
+    original_contact = Contact(
+        id=contact.id,
+        tenant_id=contact.tenant_id,
+        first_name=contact.first_name,
+        middle_name=contact.middle_name,
+        last_name=contact.last_name,
+        job_title=getattr(contact, "job_title", None),
+        created_at=contact.created_at,
+        updated_at=contact.updated_at,
+        created_by=contact.created_by,
+        updated_by=contact.updated_by,
+    )
+    # Build delta accumulator
+    delta = ContactDelta()
+
+    def handle_base_patch(field_name: str, operation: JsonPatchOperation) -> None:
+        if operation.op in ("add", "replace"):
+            if not hasattr(contact, field_name):
+                raise HTTPException(status_code=400, detail=f"Invalid field: {field_name}")
+            old_val = getattr(contact, field_name)
+            new_val = operation.value
+            setattr(contact, field_name, new_val)
+            # Record change if different
+            if old_val != new_val:
+                if delta.base_fields is None:
+                    delta.base_fields = {}
+                delta.base_fields[field_name] = new_val
+        elif operation.op == "remove":
+            # Only allow removing optional fields
+            if not hasattr(contact, field_name):
+                raise HTTPException(status_code=400, detail=f"Invalid field: {field_name}")
+            setattr(contact, field_name, None)
+            if delta.base_fields is None:
+                delta.base_fields = {}
+            delta.base_fields[field_name] = None
+        else:
+            raise HTTPException(status_code=400, detail=f"Unsupported op: {operation.op}")
+
+    def handle_collection_patch(
+        collection: str,
+        parts: List[str],
+        operation: JsonPatchOperation,
+    ) -> None:
+        """Generic handler for nested collection operations."""
+        # Determine which model class and helpers to use
+        if collection == "phones":
+            model_cls = ContactPhone
+            snapshot_fn = _phone_snapshot
+            added_attr = "phones_added"
+            updated_attr = "phones_updated"
+            deleted_attr = "phones_deleted"
+        elif collection == "emails":
+            model_cls = ContactEmail
+            snapshot_fn = _email_snapshot
+            added_attr = "emails_added"
+            updated_attr = "emails_updated"
+            deleted_attr = "emails_deleted"
+        elif collection == "addresses":
+            model_cls = ContactAddress
+            snapshot_fn = _address_snapshot
+            added_attr = "addresses_added"
+            updated_attr = "addresses_updated"
+            deleted_attr = "addresses_deleted"
+        elif collection == "social_profiles":
+            model_cls = ContactSocialProfile
+            snapshot_fn = _social_profile_snapshot
+            added_attr = "social_profiles_added"
+            updated_attr = "social_profiles_updated"
+            deleted_attr = "social_profiles_deleted"
+        elif collection == "notes":
+            model_cls = ContactNote
+            snapshot_fn = _note_snapshot
+            added_attr = "notes_added"
+            updated_attr = "notes_updated"
+            deleted_attr = "notes_deleted"
+        else:
+            raise HTTPException(status_code=400, detail=f"Unsupported collection: {collection}")
+
+        # Helper to record delta
+        def record(action: str, payload: Any) -> None:
+            attr = None
+            if action == "add":
+                attr = added_attr
+            elif action == "update":
+                attr = updated_attr
+            elif action == "delete":
+                attr = deleted_attr
+            if attr:
+                current = getattr(delta, attr)
+                if current is None:
+                    if action == "delete":
+                        setattr(delta, attr, [payload])
+                    else:
+                        setattr(delta, attr, [payload])
+                else:
+                    current.append(payload)
+
+        # If path ends at collection root (e.g. /phones)
+        if len(parts) == 1:
+            if operation.op not in ("add", "replace"):
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Operation {operation.op} not supported at collection root",
+                )
+            # Expect value to be full object for the nested resource
+            if not isinstance(operation.value, dict):
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Value must be an object when adding to {collection}",
+                )
+            # Construct create request object from dict
+            if collection == "phones":
+                create_in = ContactPhoneNumberCreateRequest.model_validate(operation.value)
+                obj = model_cls(
+                    tenant_id=tenant_id,
+                    contact_id=contact.id,
+                    phone_raw=create_in.phone_raw,
+                    phone_e164=create_in.phone_e164,
+                    phone_type=create_in.phone_type or "mobile",
+                    is_primary=create_in.is_primary or False,
+                    is_sms_capable=create_in.is_sms_capable or False,
+                    is_verified=create_in.is_verified or False,
+                    created_by=updated_by,
+                    updated_by=updated_by,
+                )
+            elif collection == "emails":
+                create_in = ContactEmailCreateRequest.model_validate(operation.value)
+                obj = model_cls(
+                    tenant_id=tenant_id,
+                    contact_id=contact.id,
+                    email=create_in.email,
+                    email_type=create_in.email_type or "work",
+                    is_primary=create_in.is_primary or False,
+                    is_verified=create_in.is_verified or False,
+                    created_by=updated_by,
+                    updated_by=updated_by,
+                )
+            elif collection == "addresses":
+                create_in = ContactAddressCreateRequest.model_validate(operation.value)
+                obj = model_cls(
+                    tenant_id=tenant_id,
+                    contact_id=contact.id,
+                    address_type=create_in.address_type or "home",
+                    label=create_in.label,
+                    is_primary=create_in.is_primary or False,
+                    line1=create_in.line1,
+                    line2=create_in.line2,
+                    line3=getattr(create_in, "line3", None),
+                    city=create_in.city,
+                    region=create_in.region,
+                    postal_code=create_in.postal_code,
+                    country_code=create_in.country_code or "US",
+                    created_by=updated_by,
+                    updated_by=updated_by,
+                )
+            elif collection == "social_profiles":
+                create_in = ContactSocialProfileCreateRequest.model_validate(operation.value)
+                obj = model_cls(
+                    tenant_id=tenant_id,
+                    contact_id=contact.id,
+                    profile_type=create_in.profile_type,
+                    profile_url=create_in.profile_url,
+                    created_by=updated_by,
+                    updated_by=updated_by,
+                )
+            elif collection == "notes":
+                create_in = ContactNoteCreateRequest.model_validate(operation.value)
+                obj = model_cls(
+                    tenant_id=tenant_id,
+                    contact_id=contact.id,
+                    note_type=create_in.note_type or "note",
+                    title=create_in.title,
+                    body=create_in.body,
+                    noted_at=create_in.noted_at or datetime.utcnow(),
+                    source_system=create_in.source_system,
+                    source_ref=create_in.source_ref,
+                    created_by=updated_by,
+                    updated_by=updated_by,
+                )
+            else:
+                raise HTTPException(status_code=400, detail="Unsupported collection")
+            db.add(obj)
+            # Flush to assign id
+            db.flush()
+            # Append to contact relationship
+            getattr(contact, collection).append(obj)
+            record("add", snapshot_fn(obj))
+            return
+
+        # Otherwise we have an id at parts[1]
+        obj_id = parts[1]
+        try:
+            obj_uuid = uuid.UUID(obj_id)
+        except Exception:
+            raise HTTPException(status_code=400, detail=f"Invalid UUID: {obj_id}")
+        # Find existing object
+        found = None
+        for item in getattr(contact, collection):
+            if item.id == obj_uuid:
+                found = item
+                break
+        if found is None:
+            raise HTTPException(status_code=404, detail=f"{collection[:-1].title()} not found")
+        # If operation targets the entire object (length == 2)
+        if len(parts) == 2:
+            if operation.op == "remove":
+                # Delete object
+                db.delete(found)
+                record("delete", found.id)
+                return
+            elif operation.op in ("add", "replace"):
+                if not isinstance(operation.value, dict):
+                    raise HTTPException(status_code=400, detail="Value must be an object for update")
+                # Use update models to validate fields
+                if collection == "phones":
+                    update_in = ContactPhoneNumberUpdateRequest.model_validate(operation.value)
+                    # Update each provided field
+                    if update_in.phone_raw is not None:
+                        found.phone_raw = update_in.phone_raw
+                    if update_in.phone_e164 is not None:
+                        found.phone_e164 = update_in.phone_e164
+                    if update_in.phone_type is not None:
+                        found.phone_type = update_in.phone_type
+                    if update_in.is_primary is not None:
+                        found.is_primary = update_in.is_primary
+                    if update_in.is_sms_capable is not None:
+                        found.is_sms_capable = update_in.is_sms_capable
+                    if update_in.is_verified is not None:
+                        found.is_verified = update_in.is_verified
+                elif collection == "emails":
+                    update_in = ContactEmailUpdateRequest.model_validate(operation.value)
+                    if update_in.email is not None:
+                        found.email = update_in.email
+                    if update_in.email_type is not None:
+                        found.email_type = update_in.email_type
+                    if update_in.is_primary is not None:
+                        found.is_primary = update_in.is_primary
+                    if update_in.is_verified is not None:
+                        found.is_verified = update_in.is_verified
+                elif collection == "addresses":
+                    update_in = ContactAddressUpdateRequest.model_validate(operation.value)
+                    if update_in.address_type is not None:
+                        found.address_type = update_in.address_type
+                    if update_in.label is not None:
+                        found.label = update_in.label
+                    if update_in.is_primary is not None:
+                        found.is_primary = update_in.is_primary
+                    if update_in.line1 is not None:
+                        found.line1 = update_in.line1
+                    if update_in.line2 is not None:
+                        found.line2 = update_in.line2
+                    if update_in.line3 is not None:
+                        found.line3 = update_in.line3
+                    if update_in.city is not None:
+                        found.city = update_in.city
+                    if update_in.region is not None:
+                        found.region = update_in.region
+                    if update_in.postal_code is not None:
+                        found.postal_code = update_in.postal_code
+                    if update_in.country_code is not None:
+                        found.country_code = update_in.country_code
+                elif collection == "social_profiles":
+                    update_in = ContactSocialProfileUpdateRequest.model_validate(operation.value)
+                    if update_in.profile_type is not None:
+                        found.profile_type = update_in.profile_type
+                    if update_in.profile_url is not None:
+                        found.profile_url = update_in.profile_url
+                elif collection == "notes":
+                    update_in = ContactNoteUpdateRequest.model_validate(operation.value)
+                    if update_in.note_type is not None:
+                        found.note_type = update_in.note_type
+                    if update_in.title is not None:
+                        found.title = update_in.title
+                    if update_in.body is not None:
+                        found.body = update_in.body
+                    if update_in.noted_at is not None:
+                        found.noted_at = update_in.noted_at
+                    if update_in.source_system is not None:
+                        found.source_system = update_in.source_system
+                    if update_in.source_ref is not None:
+                        found.source_ref = update_in.source_ref
+                # Mark updated_by/time
+                found.updated_at = datetime.utcnow()
+                found.updated_by = updated_by
+                record("update", snapshot_fn(found))
+                return
+            else:
+                raise HTTPException(status_code=400, detail=f"Unsupported op {operation.op}")
+        # If path targets a specific attribute (len(parts) == 3)
+        attr = parts[2]
+        if operation.op == "remove":
+            setattr(found, attr, None)
+        elif operation.op in ("add", "replace"):
+            setattr(found, attr, operation.value)
+        else:
+            raise HTTPException(status_code=400, detail=f"Unsupported op {operation.op}")
+        found.updated_at = datetime.utcnow()
+        found.updated_by = updated_by
+        record("update", snapshot_fn(found))
+
+    # Apply each patch operation
+    for op in patch_request.operations:
+        path_parts = [p for p in op.path.strip("/").split("/") if p]
+        if not path_parts:
+            raise HTTPException(status_code=400, detail="Invalid patch path")
+        root = path_parts[0]
+        if root in {"phones", "emails", "addresses", "social_profiles", "notes"}:
+            handle_collection_patch(root, path_parts, op)
+        else:
+            handle_base_patch(root, op)
+    # Update timestamps and user
+    contact.updated_at = datetime.utcnow()
+    contact.updated_by = updated_by
+    db.commit()
+    db.refresh(contact)
+    # Compute base changes if not already populated in delta
+    base_changes = _compute_base_changes(original_contact, contact)
+    if base_changes:
+        if delta.base_fields is None:
+            delta.base_fields = base_changes
+        else:
+            delta.base_fields.update(base_changes)
+    # Emit event if any changes captured
+    if any(
+        [
+            delta.base_fields,
+            delta.phones_added,
+            delta.phones_updated,
+            delta.phones_deleted,
+            delta.emails_added,
+            delta.emails_updated,
+            delta.emails_deleted,
+            delta.addresses_added,
+            delta.addresses_updated,
+            delta.addresses_deleted,
+            delta.social_profiles_added,
+            delta.social_profiles_updated,
+            delta.social_profiles_deleted,
+            delta.notes_added,
+            delta.notes_updated,
+            delta.notes_deleted,
+        ]
+    ):
+        snapshot = _contact_snapshot(contact)
+        try:
+            ContactProducer.send_contact_updated(
+                tenant_id=tenant_id,
+                changes=delta,
+                payload=snapshot,
+            )
+        except Exception:
+            logger.exception(
+                "Failed to publish contact.updated event tenant_id=%s contact_id=%s",
+                tenant_id,
+                contact_id,
+            )
+    return contact
+
+
+# ---------------------------------------------------------------------------
+# Nested resource list functions
+# ---------------------------------------------------------------------------
+
+
+def list_contact_phones(db: Session, tenant_id: uuid.UUID, contact_id: uuid.UUID) -> List[ContactPhone]:
+    """Return all phone numbers for a contact."""
+    return (
+        db.query(ContactPhone)
+        .filter(ContactPhone.tenant_id == tenant_id, ContactPhone.contact_id == contact_id)
+        .order_by(ContactPhone.created_at.asc())
+        .all()
+    )
+
+
+def list_contact_emails(db: Session, tenant_id: uuid.UUID, contact_id: uuid.UUID) -> List[ContactEmail]:
+    return (
+        db.query(ContactEmail)
+        .filter(ContactEmail.tenant_id == tenant_id, ContactEmail.contact_id == contact_id)
+        .order_by(ContactEmail.created_at.asc())
+        .all()
+    )
+
+
+def list_contact_addresses(db: Session, tenant_id: uuid.UUID, contact_id: uuid.UUID) -> List[ContactAddress]:
+    return (
+        db.query(ContactAddress)
+        .filter(ContactAddress.tenant_id == tenant_id, ContactAddress.contact_id == contact_id)
+        .order_by(ContactAddress.created_at.asc())
+        .all()
+    )
+
+
+def list_contact_social_profiles(db: Session, tenant_id: uuid.UUID, contact_id: uuid.UUID) -> List[ContactSocialProfile]:
+    return (
+        db.query(ContactSocialProfile)
+        .filter(ContactSocialProfile.tenant_id == tenant_id, ContactSocialProfile.contact_id == contact_id)
+        .order_by(ContactSocialProfile.created_at.asc())
+        .all()
+    )
+
+
+def list_contact_notes(db: Session, tenant_id: uuid.UUID, contact_id: uuid.UUID) -> List[ContactNote]:
+    return (
+        db.query(ContactNote)
+        .filter(ContactNote.tenant_id == tenant_id, ContactNote.contact_id == contact_id)
+        .order_by(ContactNote.noted_at.asc())
+        .all()
+    )
+
+
+def list_contact_company_relationships(
+    db: Session, tenant_id: uuid.UUID, contact_id: uuid.UUID
+) -> List[ContactCompanyRelationship]:
+    return (
+        db.query(ContactCompanyRelationship)
+        .filter(
+            ContactCompanyRelationship.tenant_id == tenant_id,
+            ContactCompanyRelationship.contact_id == contact_id,
+        )
+        .order_by(ContactCompanyRelationship.created_at.asc())
+        .all()
+    )
+
+
+# ---------------------------------------------------------------------------
+# Nested resource mutation functions (tenant/admin endpoints)
+# ---------------------------------------------------------------------------
+
+
+def _emit_contact_update_event(db: Session, contact: Any, tenant_id: uuid.UUID, delta: ContactDelta) -> None:
+    """Internal helper to emit a contact.updated event after nested operations.
+
+    It refreshes the contact to obtain the latest state and publishes
+    the event if any changes were recorded.
+    """
+    if not any(
+        [
+            delta.base_fields,
+            delta.phones_added,
+            delta.phones_updated,
+            delta.phones_deleted,
+            delta.emails_added,
+            delta.emails_updated,
+            delta.emails_deleted,
+            delta.addresses_added,
+            delta.addresses_updated,
+            delta.addresses_deleted,
+            delta.social_profiles_added,
+            delta.social_profiles_updated,
+            delta.social_profiles_deleted,
+            delta.notes_added,
+            delta.notes_updated,
+            delta.notes_deleted,
+        ]
+    ):
+        return
+    db.refresh(contact)
+    snapshot = _contact_snapshot(contact)
+    try:
+        ContactProducer.send_contact_updated(
+            tenant_id=tenant_id,
+            changes=delta,
+            payload=snapshot,
+        )
+    except Exception:
+        logger.exception(
+            "Failed to publish contact.updated event tenant_id=%s contact_id=%s",
+            tenant_id,
+            contact.id,
+        )
+
+
+def add_contact_phone(
+    db: Session,
+    tenant_id: uuid.UUID,
+    contact_id: uuid.UUID,
+    phone_in: ContactPhoneNumberCreateRequest,
+    updated_by: Optional[str],
+) -> ContactPhone:
+    """Add a phone number to a contact and emit an update event."""
+    contact = get_contact(db, tenant_id=tenant_id, contact_id=contact_id)
+    phone = ContactPhone(
+        tenant_id=tenant_id,
+        contact_id=contact.id,
+        phone_raw=phone_in.phone_raw,
+        phone_e164=phone_in.phone_e164,
+        phone_type=phone_in.phone_type or "mobile",
+        is_primary=phone_in.is_primary or False,
+        is_sms_capable=phone_in.is_sms_capable or False,
+        is_verified=phone_in.is_verified or False,
+        created_by=updated_by,
+        updated_by=updated_by,
+    )
+    db.add(phone)
+    db.commit()
+    delta = ContactDelta(phones_added=[_phone_snapshot(phone)])
+    _emit_contact_update_event(db, contact, tenant_id, delta)
+    return phone
+
+
+def update_contact_phone(
+    db: Session,
+    tenant_id: uuid.UUID,
+    contact_id: uuid.UUID,
+    phone_id: uuid.UUID,
+    phone_update: ContactPhoneNumberUpdateRequest,
+    updated_by: Optional[str],
+) -> ContactPhone:
+    contact = get_contact(db, tenant_id=tenant_id, contact_id=contact_id)
+    phone: Optional[ContactPhone] = (
+        db.query(ContactPhone)
+        .filter(ContactPhone.id == phone_id, ContactPhone.tenant_id == tenant_id, ContactPhone.contact_id == contact_id)
+        .first()
+    )
+    if not phone:
+        raise HTTPException(status_code=404, detail="Phone number not found")
+    # Apply updates
+    if phone_update.phone_raw is not None:
+        phone.phone_raw = phone_update.phone_raw
+    if phone_update.phone_e164 is not None:
+        phone.phone_e164 = phone_update.phone_e164
+    if phone_update.phone_type is not None:
+        phone.phone_type = phone_update.phone_type
+    if phone_update.is_primary is not None:
+        phone.is_primary = phone_update.is_primary
+    if phone_update.is_sms_capable is not None:
+        phone.is_sms_capable = phone_update.is_sms_capable
+    if phone_update.is_verified is not None:
+        phone.is_verified = phone_update.is_verified
+    phone.updated_at = datetime.utcnow()
+    phone.updated_by = updated_by
+    db.commit()
+    delta = ContactDelta(phones_updated=[_phone_snapshot(phone)])
+    _emit_contact_update_event(db, contact, tenant_id, delta)
+    return phone
+
+
+def delete_contact_phone(
+    db: Session,
+    tenant_id: uuid.UUID,
+    contact_id: uuid.UUID,
+    phone_id: uuid.UUID,
+    updated_by: Optional[str],
+) -> None:
+    contact = get_contact(db, tenant_id=tenant_id, contact_id=contact_id)
+    phone: Optional[ContactPhone] = (
+        db.query(ContactPhone)
+        .filter(ContactPhone.id == phone_id, ContactPhone.tenant_id == tenant_id, ContactPhone.contact_id == contact_id)
+        .first()
+    )
+    if not phone:
+        raise HTTPException(status_code=404, detail="Phone number not found")
+    db.delete(phone)
+    db.commit()
+    delta = ContactDelta(phones_deleted=[phone_id])
+    _emit_contact_update_event(db, contact, tenant_id, delta)
+    return None
+
+
+def add_contact_email(
+    db: Session,
+    tenant_id: uuid.UUID,
+    contact_id: uuid.UUID,
+    email_in: ContactEmailCreateRequest,
+    updated_by: Optional[str],
+) -> ContactEmail:
+    contact = get_contact(db, tenant_id=tenant_id, contact_id=contact_id)
+    email = ContactEmail(
+        tenant_id=tenant_id,
+        contact_id=contact.id,
+        email=email_in.email,
+        email_type=email_in.email_type or "work",
+        is_primary=email_in.is_primary or False,
+        is_verified=email_in.is_verified or False,
+        created_by=updated_by,
+        updated_by=updated_by,
+    )
+    db.add(email)
+    db.commit()
+    delta = ContactDelta(emails_added=[_email_snapshot(email)])
+    _emit_contact_update_event(db, contact, tenant_id, delta)
+    return email
+
+
+def update_contact_email(
+    db: Session,
+    tenant_id: uuid.UUID,
+    contact_id: uuid.UUID,
+    email_id: uuid.UUID,
+    email_update: ContactEmailUpdateRequest,
+    updated_by: Optional[str],
+) -> ContactEmail:
+    contact = get_contact(db, tenant_id=tenant_id, contact_id=contact_id)
+    email: Optional[ContactEmail] = (
+        db.query(ContactEmail)
+        .filter(ContactEmail.id == email_id, ContactEmail.tenant_id == tenant_id, ContactEmail.contact_id == contact_id)
+        .first()
+    )
+    if not email:
+        raise HTTPException(status_code=404, detail="Email not found")
+    if email_update.email is not None:
+        email.email = email_update.email
+    if email_update.email_type is not None:
+        email.email_type = email_update.email_type
+    if email_update.is_primary is not None:
+        email.is_primary = email_update.is_primary
+    if email_update.is_verified is not None:
+        email.is_verified = email_update.is_verified
+    email.updated_at = datetime.utcnow()
+    email.updated_by = updated_by
+    db.commit()
+    delta = ContactDelta(emails_updated=[_email_snapshot(email)])
+    _emit_contact_update_event(db, contact, tenant_id, delta)
+    return email
+
+
+def delete_contact_email(
+    db: Session,
+    tenant_id: uuid.UUID,
+    contact_id: uuid.UUID,
+    email_id: uuid.UUID,
+    updated_by: Optional[str],
+) -> None:
+    contact = get_contact(db, tenant_id=tenant_id, contact_id=contact_id)
+    email: Optional[ContactEmail] = (
+        db.query(ContactEmail)
+        .filter(ContactEmail.id == email_id, ContactEmail.tenant_id == tenant_id, ContactEmail.contact_id == contact_id)
+        .first()
+    )
+    if not email:
+        raise HTTPException(status_code=404, detail="Email not found")
+    db.delete(email)
+    db.commit()
+    delta = ContactDelta(emails_deleted=[email_id])
+    _emit_contact_update_event(db, contact, tenant_id, delta)
+    return None
+
+
+def add_contact_address(
+    db: Session,
+    tenant_id: uuid.UUID,
+    contact_id: uuid.UUID,
+    addr_in: ContactAddressCreateRequest,
+    updated_by: Optional[str],
+) -> ContactAddress:
+    contact = get_contact(db, tenant_id=tenant_id, contact_id=contact_id)
+    addr = ContactAddress(
+        tenant_id=tenant_id,
+        contact_id=contact.id,
+        address_type=addr_in.address_type or "home",
+        label=addr_in.label,
+        is_primary=addr_in.is_primary or False,
+        line1=addr_in.line1,
+        line2=addr_in.line2,
+        line3=getattr(addr_in, "line3", None),
+        city=addr_in.city,
+        region=addr_in.region,
+        postal_code=addr_in.postal_code,
+        country_code=addr_in.country_code or "US",
+        created_by=updated_by,
+        updated_by=updated_by,
+    )
+    db.add(addr)
+    db.commit()
+    delta = ContactDelta(addresses_added=[_address_snapshot(addr)])
+    _emit_contact_update_event(db, contact, tenant_id, delta)
+    return addr
+
+
+def update_contact_address(
+    db: Session,
+    tenant_id: uuid.UUID,
+    contact_id: uuid.UUID,
+    address_id: uuid.UUID,
+    addr_update: ContactAddressUpdateRequest,
+    updated_by: Optional[str],
+) -> ContactAddress:
+    contact = get_contact(db, tenant_id=tenant_id, contact_id=contact_id)
+    addr: Optional[ContactAddress] = (
+        db.query(ContactAddress)
+        .filter(ContactAddress.id == address_id, ContactAddress.tenant_id == tenant_id, ContactAddress.contact_id == contact_id)
+        .first()
+    )
+    if not addr:
+        raise HTTPException(status_code=404, detail="Address not found")
+    if addr_update.address_type is not None:
+        addr.address_type = addr_update.address_type
+    if addr_update.label is not None:
+        addr.label = addr_update.label
+    if addr_update.is_primary is not None:
+        addr.is_primary = addr_update.is_primary
+    if addr_update.line1 is not None:
+        addr.line1 = addr_update.line1
+    if addr_update.line2 is not None:
+        addr.line2 = addr_update.line2
+    if addr_update.line3 is not None:
+        addr.line3 = addr_update.line3
+    if addr_update.city is not None:
+        addr.city = addr_update.city
+    if addr_update.region is not None:
+        addr.region = addr_update.region
+    if addr_update.postal_code is not None:
+        addr.postal_code = addr_update.postal_code
+    if addr_update.country_code is not None:
+        addr.country_code = addr_update.country_code
+    addr.updated_at = datetime.utcnow()
+    addr.updated_by = updated_by
+    db.commit()
+    delta = ContactDelta(addresses_updated=[_address_snapshot(addr)])
+    _emit_contact_update_event(db, contact, tenant_id, delta)
+    return addr
+
+
+def delete_contact_address(
+    db: Session,
+    tenant_id: uuid.UUID,
+    contact_id: uuid.UUID,
+    address_id: uuid.UUID,
+    updated_by: Optional[str],
+) -> None:
+    contact = get_contact(db, tenant_id=tenant_id, contact_id=contact_id)
+    addr: Optional[ContactAddress] = (
+        db.query(ContactAddress)
+        .filter(ContactAddress.id == address_id, ContactAddress.tenant_id == tenant_id, ContactAddress.contact_id == contact_id)
+        .first()
+    )
+    if not addr:
+        raise HTTPException(status_code=404, detail="Address not found")
+    db.delete(addr)
+    db.commit()
+    delta = ContactDelta(addresses_deleted=[address_id])
+    _emit_contact_update_event(db, contact, tenant_id, delta)
+    return None
+
+
+def add_contact_social_profile(
+    db: Session,
+    tenant_id: uuid.UUID,
+    contact_id: uuid.UUID,
+    sp_in: ContactSocialProfileCreateRequest,
+    updated_by: Optional[str],
+) -> ContactSocialProfile:
+    contact = get_contact(db, tenant_id=tenant_id, contact_id=contact_id)
+    sp = ContactSocialProfile(
+        tenant_id=tenant_id,
+        contact_id=contact.id,
+        profile_type=sp_in.profile_type,
+        profile_url=sp_in.profile_url,
+        created_by=updated_by,
+        updated_by=updated_by,
+    )
+    db.add(sp)
+    db.commit()
+    delta = ContactDelta(social_profiles_added=[_social_profile_snapshot(sp)])
+    _emit_contact_update_event(db, contact, tenant_id, delta)
+    return sp
+
+
+def update_contact_social_profile(
+    db: Session,
+    tenant_id: uuid.UUID,
+    contact_id: uuid.UUID,
+    social_profile_id: uuid.UUID,
+    sp_update: ContactSocialProfileUpdateRequest,
+    updated_by: Optional[str],
+) -> ContactSocialProfile:
+    contact = get_contact(db, tenant_id=tenant_id, contact_id=contact_id)
+    sp: Optional[ContactSocialProfile] = (
+        db.query(ContactSocialProfile)
+        .filter(
+            ContactSocialProfile.id == social_profile_id,
+            ContactSocialProfile.tenant_id == tenant_id,
+            ContactSocialProfile.contact_id == contact_id,
+        )
+        .first()
+    )
+    if not sp:
+        raise HTTPException(status_code=404, detail="Social profile not found")
+    if sp_update.profile_type is not None:
+        sp.profile_type = sp_update.profile_type
+    if sp_update.profile_url is not None:
+        sp.profile_url = sp_update.profile_url
+    sp.updated_at = datetime.utcnow()
+    sp.updated_by = updated_by
+    db.commit()
+    delta = ContactDelta(social_profiles_updated=[_social_profile_snapshot(sp)])
+    _emit_contact_update_event(db, contact, tenant_id, delta)
+    return sp
+
+
+def delete_contact_social_profile(
+    db: Session,
+    tenant_id: uuid.UUID,
+    contact_id: uuid.UUID,
+    social_profile_id: uuid.UUID,
+    updated_by: Optional[str],
+) -> None:
+    contact = get_contact(db, tenant_id=tenant_id, contact_id=contact_id)
+    sp: Optional[ContactSocialProfile] = (
+        db.query(ContactSocialProfile)
+        .filter(
+            ContactSocialProfile.id == social_profile_id,
+            ContactSocialProfile.tenant_id == tenant_id,
+            ContactSocialProfile.contact_id == contact_id,
+        )
+        .first()
+    )
+    if not sp:
+        raise HTTPException(status_code=404, detail="Social profile not found")
+    db.delete(sp)
+    db.commit()
+    delta = ContactDelta(social_profiles_deleted=[social_profile_id])
+    _emit_contact_update_event(db, contact, tenant_id, delta)
+    return None
+
+
+def add_contact_note(
+    db: Session,
+    tenant_id: uuid.UUID,
+    contact_id: uuid.UUID,
+    note_in: ContactNoteCreateRequest,
+    updated_by: Optional[str],
+) -> ContactNote:
+    contact = get_contact(db, tenant_id=tenant_id, contact_id=contact_id)
+    note = ContactNote(
+        tenant_id=tenant_id,
+        contact_id=contact.id,
+        note_type=note_in.note_type or "note",
+        title=note_in.title,
+        body=note_in.body,
+        noted_at=note_in.noted_at or datetime.utcnow(),
+        source_system=note_in.source_system,
+        source_ref=note_in.source_ref,
+        created_by=updated_by,
+        updated_by=updated_by,
+    )
+    db.add(note)
+    db.commit()
+    delta = ContactDelta(notes_added=[_note_snapshot(note)])
+    _emit_contact_update_event(db, contact, tenant_id, delta)
+    return note
+
+
+def update_contact_note(
+    db: Session,
+    tenant_id: uuid.UUID,
+    contact_id: uuid.UUID,
+    note_id: uuid.UUID,
+    note_update: ContactNoteUpdateRequest,
+    updated_by: Optional[str],
+) -> ContactNote:
+    contact = get_contact(db, tenant_id=tenant_id, contact_id=contact_id)
+    note: Optional[ContactNote] = (
+        db.query(ContactNote)
+        .filter(ContactNote.id == note_id, ContactNote.tenant_id == tenant_id, ContactNote.contact_id == contact_id)
+        .first()
+    )
+    if not note:
+        raise HTTPException(status_code=404, detail="Note not found")
+    if note_update.note_type is not None:
+        note.note_type = note_update.note_type
+    if note_update.title is not None:
+        note.title = note_update.title
+    if note_update.body is not None:
+        note.body = note_update.body
+    if note_update.noted_at is not None:
+        note.noted_at = note_update.noted_at
+    if note_update.source_system is not None:
+        note.source_system = note_update.source_system
+    if note_update.source_ref is not None:
+        note.source_ref = note_update.source_ref
+    note.updated_at = datetime.utcnow()
+    note.updated_by = updated_by
+    db.commit()
+    delta = ContactDelta(notes_updated=[_note_snapshot(note)])
+    _emit_contact_update_event(db, contact, tenant_id, delta)
+    return note
+
+
+def delete_contact_note(
+    db: Session,
+    tenant_id: uuid.UUID,
+    contact_id: uuid.UUID,
+    note_id: uuid.UUID,
+    updated_by: Optional[str],
+) -> None:
+    contact = get_contact(db, tenant_id=tenant_id, contact_id=contact_id)
+    note: Optional[ContactNote] = (
+        db.query(ContactNote)
+        .filter(ContactNote.id == note_id, ContactNote.tenant_id == tenant_id, ContactNote.contact_id == contact_id)
+        .first()
+    )
+    if not note:
+        raise HTTPException(status_code=404, detail="Note not found")
+    db.delete(note)
+    db.commit()
+    delta = ContactDelta(notes_deleted=[note_id])
+    _emit_contact_update_event(db, contact, tenant_id, delta)
+    return None
+
+
+# ---------------------------------------------------------------------------
+# Company relationship functions
+# ---------------------------------------------------------------------------
+
+
+def list_contact_company_relationships(
+    db: Session,
+    tenant_id: uuid.UUID,
+    contact_id: uuid.UUID,
+) -> List[ContactCompanyRelationship]:
+    return (
+        db.query(ContactCompanyRelationship)
+        .filter(
+            ContactCompanyRelationship.tenant_id == tenant_id,
+            ContactCompanyRelationship.contact_id == contact_id,
+        )
+        .order_by(ContactCompanyRelationship.created_at.asc())
+        .all()
+    )
+
+
+def add_contact_company_relationship(
+    db: Session,
+    tenant_id: uuid.UUID,
+    contact_id: uuid.UUID,
+    rel_in: ContactCompanyRelationshipCreateRequest,
+    updated_by: Optional[str],
+) -> ContactCompanyRelationship:
+    """Add a company relationship to a contact and emit a relationship created event."""
+    contact = get_contact(db, tenant_id=tenant_id, contact_id=contact_id)
+    rel = ContactCompanyRelationship(
+        tenant_id=tenant_id,
+        contact_id=contact.id,
+        company_id=rel_in.company_id,
+        relationship_type=rel_in.relationship_type,
+        department=rel_in.department,
+        job_title=rel_in.job_title,
+        work_email=rel_in.work_email,
+        work_phone_raw=rel_in.work_phone_raw,
+        work_phone_e164=rel_in.work_phone_e164,
+        work_phone_ext=rel_in.work_phone_ext,
+        is_primary=rel_in.is_primary or False,
+        start_date=rel_in.start_date,
+        end_date=rel_in.end_date,
+        is_active=rel_in.is_active if rel_in.is_active is not None else True,
+        created_by=updated_by,
+        updated_by=updated_by,
+    )
+    db.add(rel)
+    db.commit()
+    payload = _company_relationship_snapshot(rel)
+    try:
+        RelationshipProducer.send_relationship_created(
+            tenant_id=tenant_id,
+            contact_id=contact.id,
+            company_id=rel.company_id,
+            payload=payload,
+        )
+    except Exception:
+        logger.exception(
+            "Failed to publish contact_company_relationship.created event tenant_id=%s contact_id=%s company_id=%s",
+            tenant_id,
+            contact.id,
+            rel.company_id,
+        )
+    return rel
+
+
+def update_contact_company_relationship(
+    db: Session,
+    tenant_id: uuid.UUID,
+    contact_id: uuid.UUID,
+    company_id: uuid.UUID,
+    rel_update: ContactCompanyRelationshipUpdateRequest,
+    updated_by: Optional[str],
+) -> ContactCompanyRelationship:
+    contact = get_contact(db, tenant_id=tenant_id, contact_id=contact_id)
+    rel: Optional[ContactCompanyRelationship] = (
+        db.query(ContactCompanyRelationship)
+        .filter(
+            ContactCompanyRelationship.tenant_id == tenant_id,
+            ContactCompanyRelationship.contact_id == contact_id,
+            ContactCompanyRelationship.company_id == company_id,
+        )
+        .first()
+    )
+    if not rel:
+        raise HTTPException(status_code=404, detail="Relationship not found")
+    # Track changes
+    changes: Dict[str, Any] = {}
+    if rel_update.relationship_type is not None and rel_update.relationship_type != rel.relationship_type:
+        rel.relationship_type = rel_update.relationship_type
+        changes["relationship_type"] = rel.relationship_type
+    if rel_update.department is not None and rel_update.department != rel.department:
+        rel.department = rel_update.department
+        changes["department"] = rel.department
+    if rel_update.job_title is not None and rel_update.job_title != rel.job_title:
+        rel.job_title = rel_update.job_title
+        changes["job_title"] = rel.job_title
+    if rel_update.work_email is not None and rel_update.work_email != rel.work_email:
+        rel.work_email = rel_update.work_email
+        changes["work_email"] = rel.work_email
+    if rel_update.work_phone_raw is not None and rel_update.work_phone_raw != rel.work_phone_raw:
+        rel.work_phone_raw = rel_update.work_phone_raw
+        changes["work_phone_raw"] = rel.work_phone_raw
+    if rel_update.work_phone_e164 is not None and rel_update.work_phone_e164 != rel.work_phone_e164:
+        rel.work_phone_e164 = rel_update.work_phone_e164
+        changes["work_phone_e164"] = rel.work_phone_e164
+    if rel_update.work_phone_ext is not None and rel_update.work_phone_ext != rel.work_phone_ext:
+        rel.work_phone_ext = rel_update.work_phone_ext
+        changes["work_phone_ext"] = rel.work_phone_ext
+    if rel_update.is_primary is not None and rel_update.is_primary != rel.is_primary:
+        rel.is_primary = rel_update.is_primary
+        changes["is_primary"] = rel.is_primary
+    if rel_update.start_date is not None and rel_update.start_date != rel.start_date:
+        rel.start_date = rel_update.start_date
+        changes["start_date"] = rel.start_date.isoformat() if rel.start_date else None
+    if rel_update.end_date is not None and rel_update.end_date != rel.end_date:
+        rel.end_date = rel_update.end_date
+        changes["end_date"] = rel.end_date.isoformat() if rel.end_date else None
+    if rel_update.is_active is not None and rel_update.is_active != rel.is_active:
+        rel.is_active = rel_update.is_active
+        changes["is_active"] = rel.is_active
+    rel.updated_at = datetime.utcnow()
+    rel.updated_by = updated_by
+    db.commit()
+    payload = _company_relationship_snapshot(rel)
+    if changes:
+        try:
+            RelationshipProducer.send_relationship_updated(
+                tenant_id=tenant_id,
+                contact_id=contact.id,
+                company_id=company_id,
+                changes=changes,
+                payload=payload,
+            )
+        except Exception:
+            logger.exception(
+                "Failed to publish contact_company_relationship.updated event tenant_id=%s contact_id=%s company_id=%s",
+                tenant_id,
+                contact.id,
+                company_id,
+            )
+    return rel
+
+
+def delete_contact_company_relationship(
+    db: Session,
+    tenant_id: uuid.UUID,
+    contact_id: uuid.UUID,
+    company_id: uuid.UUID,
+    updated_by: Optional[str],
+) -> None:
+    contact = get_contact(db, tenant_id=tenant_id, contact_id=contact_id)
+    rel: Optional[ContactCompanyRelationship] = (
+        db.query(ContactCompanyRelationship)
+        .filter(
+            ContactCompanyRelationship.tenant_id == tenant_id,
+            ContactCompanyRelationship.contact_id == contact_id,
+            ContactCompanyRelationship.company_id == company_id,
+        )
+        .first()
+    )
+    if not rel:
+        raise HTTPException(status_code=404, detail="Relationship not found")
+    db.delete(rel)
+    db.commit()
+    try:
+        RelationshipProducer.send_relationship_deleted(
+            tenant_id=tenant_id,
+            contact_id=contact.id,
+            company_id=company_id,
+            deleted_dt=datetime.utcnow().isoformat(),
+        )
+    except Exception:
+        logger.exception(
+            "Failed to publish contact_company_relationship.deleted event tenant_id=%s contact_id=%s company_id=%s",
+            tenant_id,
+            contact.id,
+            company_id,
+        )
+    return None

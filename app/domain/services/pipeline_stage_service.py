@@ -11,6 +11,9 @@ import uuid
 from typing import Iterable, Optional
 
 from sqlalchemy.orm import Session
+from sqlalchemy import or_
+
+from fastapi import HTTPException, status
 
 from app.domain.models.pipeline_stage import PipelineStage
 from app.domain.schemas.pipeline_stage import (
@@ -19,8 +22,13 @@ from app.domain.schemas.pipeline_stage import (
 )
 
 
-def list_stages(db: Session, pipeline_id: uuid.UUID) -> Iterable[PipelineStage]:
-    return db.query(PipelineStage).filter(PipelineStage.pipeline_id == pipeline_id).all()
+def list_stages(db: Session, tenant_id: uuid.UUID , pipeline_id: uuid.UUID) -> Iterable[PipelineStage]:
+    return (
+        db.query(PipelineStage)
+        .filter(PipelineStage.pipeline_id == pipeline_id, PipelineStage.tenant_id == tenant_id)
+        .order_by(PipelineStage.stage_order.asc())
+        .all()
+    )
 
 
 def get_stage(db: Session, stage_id: uuid.UUID) -> Optional[PipelineStage]:
@@ -29,9 +37,43 @@ def get_stage(db: Session, stage_id: uuid.UUID) -> Optional[PipelineStage]:
 
 def create_stage(
     db: Session,
+    tentant_id: uuid.UUID,
     user_id: Optional[uuid.UUID],
     stage_in: PipelineStageCreate,
 ) -> PipelineStage:
+    # check to see if a stage with the same name exists in the same pipeline
+    pipline = (
+        db.query(PipelineStage)
+        .filter(PipelineStage.pipeline_id == stage_in.pipeline_id)
+        .first()
+    )
+    if not pipline:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Pipeline not found.",
+        )
+    exiting_stage = (
+        db.query(PipelineStage)
+        .filter(
+            PipelineStage.pipeline_id == stage_in.pipeline_id,
+            or_(
+                PipelineStage.name == stage_in.name,
+                PipelineStage.stage_order == stage_in.stage_order,
+            ),
+        )
+        .first()
+    )
+    if exiting_stage:
+        if exiting_stage.name == stage_in.name:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="A stage with this name already exists in the pipeline.",
+            )
+        elif exiting_stage.stage_order == stage_in.stage_order:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="A stage with this order already exists in the pipeline.",
+            )   
     stage = PipelineStage(
         pipeline_id=stage_in.pipeline_id,
         name=stage_in.name,

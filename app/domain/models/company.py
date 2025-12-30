@@ -1,43 +1,105 @@
-"""SQLAlchemy model for Company.
+# app/models/company.py
+"""SQLAlchemy model for Company (dyno_crm.company).
 
-Defines the Company table as specified in the CRM requirements.  Each
-company belongs to a tenant and includes metadata for auditing.  A
-company can be associated with multiple contacts and deals via the
-association table.
+DDL is the source of truth.
 """
 
 from __future__ import annotations
 
 import uuid
 from datetime import datetime
+from typing import List, Optional
 
-from sqlalchemy import String, DateTime
+from sqlalchemy import Boolean, DateTime, Index, String, UniqueConstraint, func, text
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.db import Base
 
 
 class Company(Base):
-    __tablename__ = "companies"
+    __tablename__ = "company"
+    __table_args__ = (
+        UniqueConstraint("id", "tenant_id", name="ux_company_id_tenant"),
+        Index("ux_company_tenant_company_name", "tenant_id", "company_name", unique=True),
+        Index("ix_company_tenant", "tenant_id"),
+        Index("ix_company_tenant_name", "tenant_id", "company_name"),
+        Index(
+            "ix_company_tenant_domain",
+            "tenant_id",
+            func.lower("domain"),
+            postgresql_where=text("domain IS NOT NULL"),
+        ),
+        {"schema": "dyno_crm"},
+    )
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        PGUUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
-    tenant_id: Mapped[uuid.UUID] = mapped_column(
-        PGUUID(as_uuid=True), nullable=False, index=True
-    )
+    id: Mapped[uuid.UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
+
     company_name: Mapped[str] = mapped_column(String(255), nullable=False)
-    domain: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    industry: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, default=datetime.utcnow
-    )
+    domain: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    industry: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+
+    is_internal: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow
     )
-    created_by: Mapped[uuid.UUID | None] = mapped_column(PGUUID(as_uuid=True), nullable=True)
-    updated_by: Mapped[uuid.UUID | None] = mapped_column(PGUUID(as_uuid=True), nullable=True)
+    created_by: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    updated_by: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+
+    emails: Mapped[List["CompanyEmail"]] = relationship(
+        "CompanyEmail",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+        back_populates="company",
+    )
+
+    phones: Mapped[List["CompanyPhone"]] = relationship(
+        "CompanyPhone",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+        back_populates="company",
+    )
+
+    addresses: Mapped[List["CompanyAddress"]] = relationship(
+        "CompanyAddress",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+        back_populates="company",
+    )
+
+    social_profiles: Mapped[List["CompanySocialProfile"]] = relationship(
+        "CompanySocialProfile",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+        back_populates="company",
+    )
+
+    notes: Mapped[List["CompanyNote"]] = relationship(
+        "CompanyNote",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+        back_populates="company",
+        order_by="desc(CompanyNote.noted_at)",
+    )
+
+    # Company-to-company relationships (directional)
+    relationships_from: Mapped[List["CompanyRelationship"]] = relationship(
+        "CompanyRelationship",
+        foreign_keys="CompanyRelationship.from_company_id",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+        back_populates="from_company",
+    )
+    relationships_to: Mapped[List["CompanyRelationship"]] = relationship(
+        "CompanyRelationship",
+        foreign_keys="CompanyRelationship.to_company_id",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+        back_populates="to_company",
+    )
 
     def __repr__(self) -> str:
-        return f"<Company id={self.id} name={self.company_name}>"
+        return f"<Company id={self.id} tenant_id={self.tenant_id} name={self.company_name}>"

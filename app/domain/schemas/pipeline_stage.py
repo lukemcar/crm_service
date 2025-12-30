@@ -14,7 +14,7 @@ from pydantic import BaseModel, Field, ConfigDict
 
 
 class PipelineStageBase(BaseModel):
-    pipeline_id: UUID
+    pipeline_id: Optional[UUID]
     name: str = Field(..., max_length=255)
     stage_order: int
     probability: Optional[float] = None

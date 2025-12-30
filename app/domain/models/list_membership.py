@@ -9,8 +9,9 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
+from typing import Optional
 
-from sqlalchemy import String, DateTime, ForeignKey
+from sqlalchemy import DateTime, ForeignKey, Index, String
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -19,34 +20,50 @@ from app.core.db import Base
 
 class ListMembership(Base):
     __tablename__ = "list_memberships"
+    __table_args__ = (
+        Index("ix_list_memberships_list", "list_id"),
+        Index("ix_list_memberships_member", "member_id"),
+        {"schema": "dyno_crm"},
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(
-        PGUUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
-    list_id: Mapped[uuid.UUID] = mapped_column(
-        PGUUID(as_uuid=True), ForeignKey("lists.id", ondelete="CASCADE"), nullable=False
-    )
-    member_id: Mapped[uuid.UUID] = mapped_column(
-        PGUUID(as_uuid=True), nullable=False
-    )
-    member_type: Mapped[str] = mapped_column(
-        String(50), nullable=False
-    )
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, default=datetime.utcnow
-    )
-    created_by: Mapped[uuid.UUID | None] = mapped_column(
-        PGUUID(as_uuid=True), nullable=True
+        PGUUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4,
     )
 
-    # Relationship back to parent list
+    # IMPORTANT: schema-qualified FK because lists live in dyno_crm schema
+    list_id: Mapped[uuid.UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        ForeignKey("dyno_crm.lists.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+
+    member_id: Mapped[uuid.UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        nullable=False,
+    )
+
+    member_type: Mapped[str] = mapped_column(
+        String(50),
+        nullable=False,
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=datetime.utcnow,
+    )
+
+    created_by: Mapped[Optional[uuid.UUID]] = mapped_column(
+        PGUUID(as_uuid=True),
+        nullable=True,
+    )
+
     list: Mapped["List"] = relationship(
         "List",
         back_populates="memberships",
     )
 
     def __repr__(self) -> str:
-        return (
-            f"<ListMembership id={self.id} list_id={self.list_id} "
-            f"member_id={self.member_id} member_type={self.member_type}>"
-        )
+        return f"<ListMembership id={self.id} list_id={self.list_id} member={self.member_type}:{self.member_id}>"

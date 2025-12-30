@@ -1,15 +1,20 @@
 """SQLAlchemy model for PipelineStage.
 
-Defines the stages within a pipeline for deals and tickets.  Each
+Defines the stages within a pipeline for deals and tickets. Each
 PipelineStage is linked to a Pipeline via a foreign key.
+
+Adds tenant_id for data integrity and future partitioning. Enforces that
+(pipeline_id, tenant_id) must reference the owning Pipeline.
 """
 
 from __future__ import annotations
 
 import uuid
 from datetime import datetime
+from decimal import Decimal
+from typing import List, Optional
 
-from sqlalchemy import String, Integer, Numeric, DateTime, ForeignKey
+from sqlalchemy import DateTime, ForeignKey, ForeignKeyConstraint, Index, Integer, Numeric, String, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -18,30 +23,85 @@ from app.core.db import Base
 
 class PipelineStage(Base):
     __tablename__ = "pipeline_stages"
+    __table_args__ = (
+        UniqueConstraint("pipeline_id", "stage_order", name="ux_pipeline_stages_pipeline_order"),
+        UniqueConstraint("pipeline_id", "name", name="ux_pipeline_stages_pipeline_name"),
+        Index("ix_pipeline_stages_pipeline_id", "pipeline_id"),
+        Index("ix_pipeline_stages_tenant", "tenant_id"),
+        ForeignKeyConstraint(
+            ["pipeline_id", "tenant_id"],
+            ["dyno_crm.pipelines.id", "dyno_crm.pipelines.tenant_id"],
+            name="fk_pipeline_stages_pipeline_tenant",
+            ondelete="CASCADE",
+        ),
+        {"schema": "dyno_crm"},
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(
-        PGUUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+        PGUUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4,
     )
-    pipeline_id: Mapped[uuid.UUID] = mapped_column(
-        PGUUID(as_uuid=True), ForeignKey("pipelines.id", ondelete="CASCADE"), nullable=False
-    )
-    name: Mapped[str] = mapped_column(String(255), nullable=False)
-    stage_order: Mapped[int] = mapped_column(Integer, nullable=False)
-    probability: Mapped[float | None] = mapped_column(Numeric(5, 2), nullable=True)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, default=datetime.utcnow
-    )
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow
-    )
-    created_by: Mapped[uuid.UUID | None] = mapped_column(PGUUID(as_uuid=True), nullable=True)
-    updated_by: Mapped[uuid.UUID | None] = mapped_column(PGUUID(as_uuid=True), nullable=True)
 
-    # Relationship back to pipeline
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        nullable=False,
+    )
+
+    pipeline_id: Mapped[uuid.UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        ForeignKey("dyno_crm.pipelines.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+
+    name: Mapped[str] = mapped_column(
+        String(255),
+        nullable=False,
+    )
+
+    stage_order: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+    )
+
+    probability: Mapped[Optional[Decimal]] = mapped_column(
+        Numeric(5, 2),
+        nullable=True,
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=datetime.utcnow,
+    )
+
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
+    )
+
+    created_by: Mapped[Optional[uuid.UUID]] = mapped_column(
+        PGUUID(as_uuid=True),
+        nullable=True,
+    )
+
+    updated_by: Mapped[Optional[uuid.UUID]] = mapped_column(
+        PGUUID(as_uuid=True),
+        nullable=True,
+    )
+
     pipeline: Mapped["Pipeline"] = relationship(
         "Pipeline",
         back_populates="stages",
     )
 
+    deals: Mapped[List["Deal"]] = relationship(
+        "Deal",
+        back_populates="stage",
+        passive_deletes=True,
+    )
+
     def __repr__(self) -> str:
-        return f"<PipelineStage id={self.id} name={self.name} order={self.stage_order}>"
+        return f"<PipelineStage id={self.id} tenant_id={self.tenant_id} name={self.name} order={self.stage_order}>"
