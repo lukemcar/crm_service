@@ -14,7 +14,7 @@ from typing import Any, Dict
 from uuid import UUID
 
 from app.core.celery_app import EXCHANGE_NAME
-from company_relationship_events import (
+from app.domain.schemas.events.company_relationship_events import (
     CompanyRelationshipCreatedEvent,
     CompanyRelationshipUpdatedEvent,
     CompanyRelationshipDeletedEvent,

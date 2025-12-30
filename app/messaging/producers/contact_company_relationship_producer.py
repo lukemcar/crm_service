@@ -14,12 +14,12 @@ from typing import Any, Dict
 from uuid import UUID
 
 from app.core.celery_app import EXCHANGE_NAME
-from contact_company_relationship_events import (
+from app.domain.schemas.events.contact_company_relationship_events import (
     ContactCompanyRelationshipCreatedEvent,
     ContactCompanyRelationshipUpdatedEvent,
     ContactCompanyRelationshipDeletedEvent,
 )
-from tenant_group_producer import BaseProducer  # reuse base producer
+from .common import BaseProducer
 
 
 class ContactCompanyRelationshipMessageProducer(BaseProducer):

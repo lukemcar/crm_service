@@ -14,7 +14,7 @@ from typing import Any, Dict
 from uuid import UUID
 
 from app.core.celery_app import EXCHANGE_NAME
-from lead_events import (
+from app.domain.schemas.events.lead_events import (
     LeadCreatedMessage,
     LeadUpdatedMessage,
     LeadDeletedMessage,
