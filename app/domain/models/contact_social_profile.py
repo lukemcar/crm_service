@@ -10,10 +10,9 @@ import uuid
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import CheckConstraint, DateTime, ForeignKey, ForeignKeyConstraint, Index, String
+from sqlalchemy import CheckConstraint, DateTime, ForeignKey, ForeignKeyConstraint, Index, String, text
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from sqlalchemy.sql import func
 
 from app.core.db import Base
 
@@ -109,7 +108,7 @@ class ContactSocialProfile(Base):
             "ux_contact_social_profile_contact_type",
             "tenant_id",
             "contact_id",
-            func.lower("profile_type"),
+            text("lower(profile_type)"),
             unique=True,
         ),
         {"schema": "dyno_crm"},
@@ -135,7 +134,16 @@ class ContactSocialProfile(Base):
     created_by: Mapped[Optional[uuid.UUID]] = mapped_column(PGUUID(as_uuid=True), nullable=True)
     updated_by: Mapped[Optional[uuid.UUID]] = mapped_column(PGUUID(as_uuid=True), nullable=True)
 
-    contact: Mapped["Contact"] = relationship("Contact", back_populates="social_profiles")
+    # Tenant-safe relationship join (avoids AmbiguousForeignKeysError)
+    contact: Mapped["Contact"] = relationship(
+        "Contact",
+        primaryjoin="and_(Contact.id==ContactSocialProfile.contact_id, Contact.tenant_id==ContactSocialProfile.tenant_id)",
+        foreign_keys="(ContactSocialProfile.contact_id, ContactSocialProfile.tenant_id)",
+        back_populates="social_profiles",
+    )
 
     def __repr__(self) -> str:
-        return f"<ContactSocialProfile id={self.id} tenant_id={self.tenant_id} contact_id={self.contact_id} type={self.profile_type}>"
+        return (
+            f"<ContactSocialProfile id={self.id} tenant_id={self.tenant_id} "
+            f"contact_id={self.contact_id} type={self.profile_type}>"
+        )

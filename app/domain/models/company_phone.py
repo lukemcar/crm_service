@@ -83,7 +83,12 @@ class CompanyPhone(Base):
     created_by: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     updated_by: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
 
-    company: Mapped["Company"] = relationship("Company", back_populates="phones")
+    company: Mapped["Company"] = relationship(
+        "Company",
+        primaryjoin="and_(Company.id==CompanyPhone.company_id, Company.tenant_id==CompanyPhone.tenant_id)",
+        foreign_keys="(CompanyPhone.company_id, CompanyPhone.tenant_id)",
+        back_populates="phones",
+    )
 
     def __repr__(self) -> str:
         return f"<CompanyPhone id={self.id} tenant_id={self.tenant_id} company_id={self.company_id} phone={self.phone_raw}>"

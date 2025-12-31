@@ -63,8 +63,24 @@ class Contact(Base):
     created_by: Mapped[Optional[uuid.UUID]] = mapped_column(PGUUID(as_uuid=True), nullable=True)
     updated_by: Mapped[Optional[uuid.UUID]] = mapped_column(PGUUID(as_uuid=True), nullable=True)
 
+    # -----------------------------------------------------------------
+    # Child collections
+    #
+    # IMPORTANT:
+    # The schema uses BOTH:
+    #   - FK(contact_id) -> contact(id)
+    #   - FK(contact_id, tenant_id) -> contact(id, tenant_id)
+    #
+    # That produces multiple FK paths between the same tables, which causes
+    # SQLAlchemy AmbiguousForeignKeysError unless we explicitly tell it which
+    # columns to use for the relationship. We use the composite join for
+    # tenant-safe relationship navigation.
+    # -----------------------------------------------------------------
+
     emails: Mapped[List["ContactEmail"]] = relationship(
         "ContactEmail",
+        primaryjoin="and_(Contact.id==ContactEmail.contact_id, Contact.tenant_id==ContactEmail.tenant_id)",
+        foreign_keys="(ContactEmail.contact_id, ContactEmail.tenant_id)",
         back_populates="contact",
         cascade="all, delete-orphan",
         passive_deletes=True,
@@ -72,6 +88,8 @@ class Contact(Base):
 
     phones: Mapped[List["ContactPhone"]] = relationship(
         "ContactPhone",
+        primaryjoin="and_(Contact.id==ContactPhone.contact_id, Contact.tenant_id==ContactPhone.tenant_id)",
+        foreign_keys="(ContactPhone.contact_id, ContactPhone.tenant_id)",
         back_populates="contact",
         cascade="all, delete-orphan",
         passive_deletes=True,
@@ -79,6 +97,8 @@ class Contact(Base):
 
     addresses: Mapped[List["ContactAddress"]] = relationship(
         "ContactAddress",
+        primaryjoin="and_(Contact.id==ContactAddress.contact_id, Contact.tenant_id==ContactAddress.tenant_id)",
+        foreign_keys="(ContactAddress.contact_id, ContactAddress.tenant_id)",
         back_populates="contact",
         cascade="all, delete-orphan",
         passive_deletes=True,
@@ -86,6 +106,8 @@ class Contact(Base):
 
     social_profiles: Mapped[List["ContactSocialProfile"]] = relationship(
         "ContactSocialProfile",
+        primaryjoin="and_(Contact.id==ContactSocialProfile.contact_id, Contact.tenant_id==ContactSocialProfile.tenant_id)",
+        foreign_keys="(ContactSocialProfile.contact_id, ContactSocialProfile.tenant_id)",
         back_populates="contact",
         cascade="all, delete-orphan",
         passive_deletes=True,
@@ -93,6 +115,8 @@ class Contact(Base):
 
     notes: Mapped[List["ContactNote"]] = relationship(
         "ContactNote",
+        primaryjoin="and_(Contact.id==ContactNote.contact_id, Contact.tenant_id==ContactNote.tenant_id)",
+        foreign_keys="(ContactNote.contact_id, ContactNote.tenant_id)",
         back_populates="contact",
         cascade="all, delete-orphan",
         passive_deletes=True,

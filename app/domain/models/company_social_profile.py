@@ -10,7 +10,7 @@ import uuid
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import CheckConstraint, DateTime, ForeignKey, ForeignKeyConstraint, Index, String, func
+from sqlalchemy import CheckConstraint, DateTime, ForeignKey, ForeignKeyConstraint, Index, String, text
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -52,7 +52,7 @@ class CompanySocialProfile(Base):
             "ux_company_social_profile_company_type",
             "tenant_id",
             "company_id",
-            func.lower("profile_type"),
+            text("lower(profile_type)"),
             unique=True,
         ),
         {"schema": "dyno_crm"},
@@ -77,7 +77,12 @@ class CompanySocialProfile(Base):
     created_by: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     updated_by: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
 
-    company: Mapped["Company"] = relationship("Company", back_populates="social_profiles")
+    company: Mapped["Company"] = relationship(
+        "Company",
+        primaryjoin="and_(Company.id==CompanySocialProfile.company_id, Company.tenant_id==CompanySocialProfile.tenant_id)",
+        foreign_keys="(CompanySocialProfile.company_id, CompanySocialProfile.tenant_id)",
+        back_populates="social_profiles",
+    )
 
     def __repr__(self) -> str:
         return f"<CompanySocialProfile id={self.id} tenant_id={self.tenant_id} company_id={self.company_id} type={self.profile_type}>"

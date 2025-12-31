@@ -6,6 +6,11 @@
 
 SET search_path TO dyno_crm;
 
+-- ----------------------------------------------------------------------
+-- Enable pg_jsonschema (requires Supabase Postgres image or extension installed)
+-- ----------------------------------------------------------------------
+CREATE EXTENSION IF NOT EXISTS pg_jsonschema;
+
 --- schema definition starts here
 
 -- ----------------------------------------------------------------------
@@ -18,7 +23,10 @@ CREATE TABLE IF NOT EXISTS pipeline (
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
     created_by VARCHAR(100),
-    updated_by VARCHAR(100)
+    updated_by VARCHAR(100),
+
+    -- Supports composite FKs from child tables (tenant consistency)
+    CONSTRAINT ux_pipeline_id_tenant UNIQUE (id, tenant_id)
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS ux_pipeline_tenant_name
@@ -87,108 +95,88 @@ CREATE TABLE IF NOT EXISTS lead (
 
     CONSTRAINT ux_lead_id_tenant UNIQUE (id, tenant_id),
 
+    -- pg_jsonschema-based JSON validation.
+    -- This preserves the intent of the previous check:
+    --  - lead_data must be an object (if non-null)
+    --  - only these top-level keys are allowed
+    --  - phone_numbers/emails/social_profiles are objects of { "<any>": "<string>" }
+    --  - addresses is object of { "<any>": { line1/line2/city/region/postal_code/country: string } }
+    --  - notes is object of { "<any>": { created_at, updated_at, text: string } } and these 3 fields are required
     CONSTRAINT chk_lead_lead_data_schema CHECK (
-        lead_data IS NULL OR (
-            jsonb_typeof(lead_data) = 'object'
-
-            AND COALESCE((
-                SELECT bool_and(key IN ('phone_numbers', 'emails', 'addresses', 'social_profiles', 'notes'))
-                FROM jsonb_object_keys(lead_data) AS k(key)
-            ), true)
-
-            -- -------------------------
-            -- phone_numbers: object of { "<type>": "<value>" }
-            -- -------------------------
-            AND (
-                NOT (lead_data ? 'phone_numbers') OR (
-                    jsonb_typeof(lead_data->'phone_numbers') = 'object'
-                    AND NOT EXISTS (
-                        SELECT 1
-                        FROM jsonb_each(lead_data->'phone_numbers') AS pn(k, v)
-                        WHERE NOT (jsonb_typeof(v) = 'string')
-                    )
-                )
-            )
-
-            -- -------------------------
-            -- emails: object of { "<type>": "<value>" }
-            -- -------------------------
-            AND (
-                NOT (lead_data ? 'emails') OR (
-                    jsonb_typeof(lead_data->'emails') = 'object'
-                    AND NOT EXISTS (
-                        SELECT 1
-                        FROM jsonb_each(lead_data->'emails') AS em(k, v)
-                        WHERE NOT (jsonb_typeof(v) = 'string')
-                    )
-                )
-            )
-
-            -- -------------------------
-            -- addresses: object of { "<type>": { ...address fields... } }
-            -- -------------------------
-            AND (
-                NOT (lead_data ? 'addresses') OR (
-                    jsonb_typeof(lead_data->'addresses') = 'object'
-                    AND NOT EXISTS (
-                        SELECT 1
-                        FROM jsonb_each(lead_data->'addresses') AS ad(addr_type, addr_obj)
-                        WHERE NOT (
-                            jsonb_typeof(addr_obj) = 'object'
-                            AND (NOT (addr_obj ? 'line1')       OR jsonb_typeof(addr_obj->'line1')       = 'string')
-                            AND (NOT (addr_obj ? 'line2')       OR jsonb_typeof(addr_obj->'line2')       = 'string')
-                            AND (NOT (addr_obj ? 'city')        OR jsonb_typeof(addr_obj->'city')        = 'string')
-                            AND (NOT (addr_obj ? 'region')      OR jsonb_typeof(addr_obj->'region')      = 'string')
-                            AND (NOT (addr_obj ? 'postal_code') OR jsonb_typeof(addr_obj->'postal_code') = 'string')
-                            AND (NOT (addr_obj ? 'country')     OR jsonb_typeof(addr_obj->'country')     = 'string')
-                        )
-                    )
-                )
-            )
-
-            -- -------------------------
-            -- social_profiles: object of { "<type>": "<value>" }   (UPDATED)
-            -- -------------------------
-            AND (
-                NOT (lead_data ? 'social_profiles') OR (
-                    jsonb_typeof(lead_data->'social_profiles') = 'object'
-                    AND NOT EXISTS (
-                        SELECT 1
-                        FROM jsonb_each(lead_data->'social_profiles') AS sp(k, v)
-                        WHERE NOT (jsonb_typeof(v) = 'string')
-                    )
-                )
-            )
-
-            -- -------------------------
-            -- notes: object of { "<date_label>": { created_at, updated_at, text } }
-            -- -------------------------
-            AND (
-                NOT (lead_data ? 'notes') OR (
-                    jsonb_typeof(lead_data->'notes') = 'object'
-                    AND NOT EXISTS (
-                        SELECT 1
-                        FROM jsonb_each(lead_data->'notes') AS n(note_label, note_obj)
-                        WHERE NOT (
-                            jsonb_typeof(note_obj) = 'object'
-                            AND (note_obj ? 'created_at') AND jsonb_typeof(note_obj->'created_at') = 'string'
-                            AND (note_obj ? 'updated_at') AND jsonb_typeof(note_obj->'updated_at') = 'string'
-                            AND (note_obj ? 'text')       AND jsonb_typeof(note_obj->'text')       = 'string'
-                        )
-                    )
-                )
-            )
+        lead_data IS NULL OR jsonb_matches_schema(
+            $$
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "phone_numbers": {
+                  "type": "object",
+                  "patternProperties": {
+                    ".*": { "type": "string" }
+                  },
+                  "additionalProperties": false
+                },
+                "emails": {
+                  "type": "object",
+                  "patternProperties": {
+                    ".*": { "type": "string" }
+                  },
+                  "additionalProperties": false
+                },
+                "social_profiles": {
+                  "type": "object",
+                  "patternProperties": {
+                    ".*": { "type": "string" }
+                  },
+                  "additionalProperties": false
+                },
+                "addresses": {
+                  "type": "object",
+                  "patternProperties": {
+                    ".*": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "line1":       { "type": "string" },
+                        "line2":       { "type": "string" },
+                        "city":        { "type": "string" },
+                        "region":      { "type": "string" },
+                        "postal_code": { "type": "string" },
+                        "country":     { "type": "string" }
+                      }
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "notes": {
+                  "type": "object",
+                  "patternProperties": {
+                    ".*": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "created_at": { "type": "string" },
+                        "updated_at": { "type": "string" },
+                        "text":       { "type": "string" }
+                      },
+                      "required": ["created_at", "updated_at", "text"]
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              }
+            }
+            $$::jsonb,
+            lead_data
         )
     )
 );
-
 
 CREATE INDEX IF NOT EXISTS ix_lead_tenant
     ON lead(tenant_id);
 
 CREATE INDEX IF NOT EXISTS ix_lead_tenant_last_first
     ON lead(tenant_id, last_name, first_name);
-
 
 -- =====================================================================
 -- CONTACT DOMAIN
@@ -264,7 +252,6 @@ CREATE UNIQUE INDEX IF NOT EXISTS ux_contact_email_primary_per_contact
     ON contact_email(tenant_id, contact_id)
     WHERE is_primary = TRUE;
 
-
 -- ----------------------------------------------------------------------
 -- contact_phone (depends on contact)
 -- ----------------------------------------------------------------------
@@ -317,7 +304,6 @@ CREATE UNIQUE INDEX IF NOT EXISTS ux_contact_phone_primary_per_contact
     ON contact_phone(tenant_id, contact_id)
     WHERE is_primary = TRUE;
 
-
 -- ----------------------------------------------------------------------
 -- contact_address (depends on contact)
 -- ----------------------------------------------------------------------
@@ -356,7 +342,6 @@ CREATE INDEX IF NOT EXISTS ix_contact_address_tenant_contact
 CREATE UNIQUE INDEX IF NOT EXISTS ux_contact_address_primary_per_contact
     ON contact_address(tenant_id, contact_id)
     WHERE is_primary = TRUE;
-
 
 -- ----------------------------------------------------------------------
 -- contact_social_profile (depends on contact)
@@ -405,29 +390,20 @@ CREATE INDEX IF NOT EXISTS ix_contact_social_profile_tenant_contact
 CREATE UNIQUE INDEX IF NOT EXISTS ux_contact_social_profile_contact_type
     ON contact_social_profile(tenant_id, contact_id, lower(profile_type));
 
-
 -- ----------------------------------------------------------------------
 -- contact_note (depends on contact)
--- Historical notes collected for a contact. Internal to the tenant.
 -- ----------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS contact_note (
     id UUID PRIMARY KEY,
     tenant_id UUID NOT NULL,
     contact_id UUID NOT NULL,
 
-    -- Optional categorization
     note_type VARCHAR(50) NOT NULL DEFAULT 'note',  -- note|call|meeting|email|sms|other
     title VARCHAR(255),
-
-    -- The actual note content
     body TEXT NOT NULL,
-
-    -- When the note was observed/recorded (can differ from created_at)
     noted_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-
-    -- Optional source metadata (keep light; expand later if needed)
-    source_system VARCHAR(100),      -- e.g., 'manual', 'import', 'sms_service', 'email_service'
-    source_ref VARCHAR(255),         -- external id / message id / thread id
+    source_system VARCHAR(100),
+    source_ref VARCHAR(255),
 
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -449,7 +425,6 @@ CREATE INDEX IF NOT EXISTS ix_contact_note_tenant_noted_at
 
 CREATE INDEX IF NOT EXISTS ix_contact_note_tenant_note_type
     ON contact_note(tenant_id, note_type);
-
 
 -- ======================================================================
 -- COMPANY DOMAIN
@@ -485,11 +460,9 @@ CREATE INDEX IF NOT EXISTS ix_company_tenant
 CREATE INDEX IF NOT EXISTS ix_company_tenant_name
     ON company(tenant_id, company_name);
 
--- Common lookup by domain (case-insensitive). NOT unique by default.
 CREATE INDEX IF NOT EXISTS ix_company_tenant_domain
     ON company(tenant_id, lower(domain))
     WHERE domain IS NOT NULL;
-
 
 -- ----------------------------------------------------------------------
 -- company_email (depends on company)
@@ -500,7 +473,7 @@ CREATE TABLE IF NOT EXISTS company_email (
     company_id UUID NOT NULL,
 
     email VARCHAR(255) NOT NULL,
-    email_type VARCHAR(50) NOT NULL DEFAULT 'work', -- work|billing|support|sales|other
+    email_type VARCHAR(50) NOT NULL DEFAULT 'work',
     is_primary BOOLEAN NOT NULL DEFAULT FALSE,
     is_verified BOOLEAN NOT NULL DEFAULT FALSE,
     verified_at TIMESTAMPTZ,
@@ -533,7 +506,6 @@ CREATE UNIQUE INDEX IF NOT EXISTS ux_company_email_primary_per_company
     ON company_email(tenant_id, company_id)
     WHERE is_primary = TRUE;
 
-
 -- ----------------------------------------------------------------------
 -- company_phone (depends on company)
 -- ----------------------------------------------------------------------
@@ -546,7 +518,7 @@ CREATE TABLE IF NOT EXISTS company_phone (
     phone_e164 VARCHAR(20),
     phone_ext VARCHAR(20),
 
-    phone_type VARCHAR(50) NOT NULL DEFAULT 'main', -- main|support|sales|billing|fax|other
+    phone_type VARCHAR(50) NOT NULL DEFAULT 'main',
     is_primary BOOLEAN NOT NULL DEFAULT FALSE,
 
     is_sms_capable BOOLEAN NOT NULL DEFAULT FALSE,
@@ -586,7 +558,6 @@ CREATE UNIQUE INDEX IF NOT EXISTS ux_company_phone_primary_per_company
     ON company_phone(tenant_id, company_id)
     WHERE is_primary = TRUE;
 
-
 -- ----------------------------------------------------------------------
 -- company_address (depends on company)
 -- ----------------------------------------------------------------------
@@ -595,7 +566,7 @@ CREATE TABLE IF NOT EXISTS company_address (
     tenant_id UUID NOT NULL,
     company_id UUID NOT NULL,
 
-    address_type VARCHAR(50) NOT NULL DEFAULT 'office', -- office|billing|shipping|warehouse|receivings|other
+    address_type VARCHAR(50) NOT NULL DEFAULT 'office',
     label VARCHAR(100),
     is_primary BOOLEAN NOT NULL DEFAULT FALSE,
 
@@ -628,7 +599,6 @@ CREATE INDEX IF NOT EXISTS ix_company_address_tenant_company
 CREATE UNIQUE INDEX IF NOT EXISTS ux_company_address_primary_per_company
     ON company_address(tenant_id, company_id)
     WHERE is_primary = TRUE;
-
 
 -- ----------------------------------------------------------------------
 -- company_social_profile (depends on company)
@@ -675,7 +645,6 @@ CREATE INDEX IF NOT EXISTS ix_company_social_profile_tenant_company
 CREATE UNIQUE INDEX IF NOT EXISTS ux_company_social_profile_company_type
     ON company_social_profile(tenant_id, company_id, lower(profile_type));
 
-
 -- ----------------------------------------------------------------------
 -- company_note (depends on company)
 -- ----------------------------------------------------------------------
@@ -684,12 +653,10 @@ CREATE TABLE IF NOT EXISTS company_note (
     tenant_id UUID NOT NULL,
     company_id UUID NOT NULL,
 
-    note_type VARCHAR(50) NOT NULL DEFAULT 'note', -- note|call|meeting|email|sms|other
+    note_type VARCHAR(50) NOT NULL DEFAULT 'note',
     title VARCHAR(255),
     body TEXT NOT NULL,
-
     noted_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-
     source_system VARCHAR(100),
     source_ref VARCHAR(255),
 
@@ -717,10 +684,8 @@ CREATE INDEX IF NOT EXISTS ix_company_note_tenant_noted_at
 CREATE INDEX IF NOT EXISTS ix_company_note_tenant_note_type
     ON company_note(tenant_id, note_type);
 
-
 -- ----------------------------------------------------------------------
 -- company_relationship (company-to-company)
--- Directional relationship with predictable role values on both sides.
 -- ----------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS company_relationship (
     id UUID PRIMARY KEY,
@@ -786,7 +751,6 @@ CREATE INDEX IF NOT EXISTS ix_company_relationship_tenant_to
 
 CREATE UNIQUE INDEX IF NOT EXISTS ux_company_relationship_unique
     ON company_relationship(tenant_id, from_company_id, to_company_id, from_role, to_role);
-
 
 -- ----------------------------------------------------------------------
 -- contact_company_relationship
@@ -862,108 +826,3 @@ CREATE UNIQUE INDEX IF NOT EXISTS ux_contact_company_relationship_primary_per_co
 
 CREATE UNIQUE INDEX IF NOT EXISTS ux_contact_company_relationship_unique
     ON contact_company_relationship(tenant_id, contact_id, company_id, relationship_type);
-
-
--- ----------------------------------------------------------------------
--- deal (depends on pipeline + pipeline_stage)
--- ----------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS deal (
-    id UUID PRIMARY KEY,
-    tenant_id UUID NOT NULL,
-    name VARCHAR(255) NOT NULL,
-    amount NUMERIC(12,2),
-    expected_close_date DATE,
-    pipeline_id UUID NOT NULL,
-    stage_id UUID NOT NULL,
-    probability NUMERIC(5,2),
-    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-    created_by VARCHAR(100),
-    updated_by VARCHAR(100),
-    CONSTRAINT fk_deals_pipeline
-        FOREIGN KEY (pipeline_id) REFERENCES pipeline(id) ON DELETE CASCADE,
-    CONSTRAINT fk_deals_stage
-        FOREIGN KEY (stage_id) REFERENCES pipeline_stage(id) ON DELETE CASCADE
-);
-
-CREATE INDEX IF NOT EXISTS ix_deals_tenant ON deal(tenant_id);
-CREATE INDEX IF NOT EXISTS ix_deals_pipeline ON deal(pipeline_id);
-CREATE INDEX IF NOT EXISTS ix_deals_stage ON deal(stage_id);
-
--- ----------------------------------------------------------------------
--- activity
--- ----------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS activity (
-    id UUID PRIMARY KEY,
-    tenant_id UUID NOT NULL,
-    type VARCHAR(20) NOT NULL,
-    title VARCHAR(255),
-    description TEXT,
-    due_date DATE,
-    status VARCHAR(20),
-    assigned_user_id UUID,
-    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-    created_by VARCHAR(100),
-    updated_by VARCHAR(100)
-);
-
-CREATE INDEX IF NOT EXISTS ix_activities_tenant ON activity(tenant_id);
-CREATE INDEX IF NOT EXISTS ix_activities_assigned_user ON activity(assigned_user_id);
-
--- ----------------------------------------------------------------------
--- association
--- ----------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS association (
-    id UUID PRIMARY KEY,
-    tenant_id UUID NOT NULL,
-    from_object_type VARCHAR(50) NOT NULL,
-    from_object_id UUID NOT NULL,
-    to_object_type VARCHAR(50) NOT NULL,
-    to_object_id UUID NOT NULL,
-    association_type VARCHAR(50),
-    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-    created_by VARCHAR(100)
-);
-
-CREATE INDEX IF NOT EXISTS ix_associations_tenant ON association(tenant_id);
-CREATE INDEX IF NOT EXISTS ix_associations_from ON association(from_object_id);
-CREATE INDEX IF NOT EXISTS ix_associations_to ON association(to_object_id);
-
--- ----------------------------------------------------------------------
--- list
--- ----------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS list (
-    id UUID PRIMARY KEY,
-    tenant_id UUID NOT NULL,
-    name VARCHAR(255) NOT NULL,
-    object_type VARCHAR(50) NOT NULL,
-    list_type VARCHAR(50) NOT NULL,
-    filter_definition JSON,
-    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-    created_by VARCHAR(100),
-    updated_by VARCHAR(100)
-);
-
-CREATE UNIQUE INDEX IF NOT EXISTS ux_lists_tenant_name_object
-    ON list(tenant_id, name, object_type);
-
-CREATE INDEX IF NOT EXISTS ix_lists_tenant ON list(tenant_id);
-
--- ----------------------------------------------------------------------
--- list_membership (depends on list)
--- ----------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS list_membership (
-    id UUID PRIMARY KEY,
-    list_id UUID NOT NULL,
-    member_id UUID NOT NULL,
-    member_type VARCHAR(50) NOT NULL,
-    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-    created_by VARCHAR(100),
-    CONSTRAINT fk_list_memberships_list
-        FOREIGN KEY (list_id) REFERENCES list(id) ON DELETE CASCADE
-);
-
-CREATE INDEX IF NOT EXISTS ix_list_memberships_list ON list_membership(list_id);
-CREATE INDEX IF NOT EXISTS ix_list_memberships_member ON list_membership(member_id);

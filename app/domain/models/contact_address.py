@@ -10,17 +10,9 @@ import uuid
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import (
-    Boolean,
-    DateTime,
-    ForeignKey,
-    ForeignKeyConstraint,
-    Index,
-    String,
-)
+from sqlalchemy import Boolean, DateTime, ForeignKey, ForeignKeyConstraint, Index, String, text
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from sqlalchemy.sql import func
 
 from app.core.db import Base
 
@@ -40,7 +32,7 @@ class ContactAddress(Base):
             "tenant_id",
             "contact_id",
             unique=True,
-            postgresql_where=(func.coalesce("is_primary", False) == True),  # noqa: E712
+            postgresql_where=text("is_primary = TRUE"),
         ),
         {"schema": "dyno_crm"},
     )
@@ -74,7 +66,16 @@ class ContactAddress(Base):
     created_by: Mapped[Optional[uuid.UUID]] = mapped_column(PGUUID(as_uuid=True), nullable=True)
     updated_by: Mapped[Optional[uuid.UUID]] = mapped_column(PGUUID(as_uuid=True), nullable=True)
 
-    contact: Mapped["Contact"] = relationship("Contact", back_populates="addresses")
+    # Tenant-safe relationship join (avoids AmbiguousForeignKeysError)
+    contact: Mapped["Contact"] = relationship(
+        "Contact",
+        primaryjoin="and_(Contact.id==ContactAddress.contact_id, Contact.tenant_id==ContactAddress.tenant_id)",
+        foreign_keys="(ContactAddress.contact_id, ContactAddress.tenant_id)",
+        back_populates="addresses",
+    )
 
     def __repr__(self) -> str:
-        return f"<ContactAddress id={self.id} tenant_id={self.tenant_id} contact_id={self.contact_id} type={self.address_type}>"
+        return (
+            f"<ContactAddress id={self.id} tenant_id={self.tenant_id} "
+            f"contact_id={self.contact_id} type={self.address_type}>"
+        )

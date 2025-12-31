@@ -10,17 +10,9 @@ import uuid
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import (
-    Boolean,
-    DateTime,
-    ForeignKey,
-    ForeignKeyConstraint,
-    Index,
-    String,
-)
+from sqlalchemy import Boolean, DateTime, ForeignKey, ForeignKeyConstraint, Index, String, text
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from sqlalchemy.sql import func
 
 from app.core.db import Base
 
@@ -39,7 +31,7 @@ class ContactPhone(Base):
             "ix_contact_phone_tenant_phone_e164",
             "tenant_id",
             "phone_e164",
-            postgresql_where=("phone_e164 IS NOT NULL"),
+            postgresql_where=text("phone_e164 IS NOT NULL"),
         ),
         Index("ix_contact_phone_tenant_phone_raw", "tenant_id", "phone_raw"),
         Index(
@@ -48,14 +40,14 @@ class ContactPhone(Base):
             "contact_id",
             "phone_e164",
             unique=True,
-            postgresql_where=("phone_e164 IS NOT NULL"),
+            postgresql_where=text("phone_e164 IS NOT NULL"),
         ),
         Index(
             "ux_contact_phone_primary_per_contact",
             "tenant_id",
             "contact_id",
             unique=True,
-            postgresql_where=(func.coalesce("is_primary", False) == True),  # noqa: E712
+            postgresql_where=text("is_primary = TRUE"),
         ),
         {"schema": "dyno_crm"},
     )
@@ -87,7 +79,16 @@ class ContactPhone(Base):
     created_by: Mapped[Optional[uuid.UUID]] = mapped_column(PGUUID(as_uuid=True), nullable=True)
     updated_by: Mapped[Optional[uuid.UUID]] = mapped_column(PGUUID(as_uuid=True), nullable=True)
 
-    contact: Mapped["Contact"] = relationship("Contact", back_populates="phones")
+    # Tenant-safe relationship join (avoids AmbiguousForeignKeysError)
+    contact: Mapped["Contact"] = relationship(
+        "Contact",
+        primaryjoin="and_(Contact.id==ContactPhone.contact_id, Contact.tenant_id==ContactPhone.tenant_id)",
+        foreign_keys="(ContactPhone.contact_id, ContactPhone.tenant_id)",
+        back_populates="phones",
+    )
 
     def __repr__(self) -> str:
-        return f"<ContactPhone id={self.id} tenant_id={self.tenant_id} contact_id={self.contact_id} phone={self.phone_raw}>"
+        return (
+            f"<ContactPhone id={self.id} tenant_id={self.tenant_id} "
+            f"contact_id={self.contact_id} phone={self.phone_raw}>"
+        )

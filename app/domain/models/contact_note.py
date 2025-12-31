@@ -60,7 +60,16 @@ class ContactNote(Base):
     created_by: Mapped[Optional[uuid.UUID]] = mapped_column(PGUUID(as_uuid=True), nullable=True)
     updated_by: Mapped[Optional[uuid.UUID]] = mapped_column(PGUUID(as_uuid=True), nullable=True)
 
-    contact: Mapped["Contact"] = relationship("Contact", back_populates="notes")
+    # Tenant-safe relationship join (avoids AmbiguousForeignKeysError)
+    contact: Mapped["Contact"] = relationship(
+        "Contact",
+        primaryjoin="and_(Contact.id==ContactNote.contact_id, Contact.tenant_id==ContactNote.tenant_id)",
+        foreign_keys="(ContactNote.contact_id, ContactNote.tenant_id)",
+        back_populates="notes",
+    )
 
     def __repr__(self) -> str:
-        return f"<ContactNote id={self.id} tenant_id={self.tenant_id} contact_id={self.contact_id} noted_at={self.noted_at}>"
+        return (
+            f"<ContactNote id={self.id} tenant_id={self.tenant_id} "
+            f"contact_id={self.contact_id} noted_at={self.noted_at}>"
+        )

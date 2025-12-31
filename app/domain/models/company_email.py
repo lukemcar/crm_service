@@ -10,7 +10,7 @@ import uuid
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import Boolean, CheckConstraint, DateTime, ForeignKey, ForeignKeyConstraint, Index, String, func, text
+from sqlalchemy import Boolean, CheckConstraint, DateTime, ForeignKey, ForeignKeyConstraint, Index, String, text
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -31,12 +31,12 @@ class CompanyEmail(Base):
             name="ck_company_email_type",
         ),
         Index("ix_company_email_tenant_company", "tenant_id", "company_id"),
-        Index("ix_company_email_tenant_email", "tenant_id", func.lower("email")),
+        Index("ix_company_email_tenant_email", "tenant_id", text("lower(email)")),
         Index(
             "ux_company_email_company_email",
             "tenant_id",
             "company_id",
-            func.lower("email"),
+            text("lower(email)"),
             unique=True,
         ),
         Index(
@@ -72,7 +72,12 @@ class CompanyEmail(Base):
     created_by: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     updated_by: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
 
-    company: Mapped["Company"] = relationship("Company", back_populates="emails")
+    company: Mapped["Company"] = relationship(
+        "Company",
+        primaryjoin="and_(Company.id==CompanyEmail.company_id, Company.tenant_id==CompanyEmail.tenant_id)",
+        foreign_keys="(CompanyEmail.company_id, CompanyEmail.tenant_id)",
+        back_populates="emails",
+    )
 
     def __repr__(self) -> str:
         return f"<CompanyEmail id={self.id} tenant_id={self.tenant_id} company_id={self.company_id} email={self.email}>"

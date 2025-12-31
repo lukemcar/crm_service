@@ -10,17 +10,9 @@ import uuid
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import (
-    Boolean,
-    DateTime,
-    ForeignKey,
-    ForeignKeyConstraint,
-    Index,
-    String,
-)
+from sqlalchemy import Boolean, DateTime, ForeignKey, ForeignKeyConstraint, Index, String, text
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from sqlalchemy.sql import func
 
 from app.core.db import Base
 
@@ -28,6 +20,8 @@ from app.core.db import Base
 class ContactEmail(Base):
     __tablename__ = "contact_email"
     __table_args__ = (
+        # Tenant-safe composite foreign key. This is the FK path we want SQLAlchemy to use
+        # for relationship joins.
         ForeignKeyConstraint(
             ["contact_id", "tenant_id"],
             ["dyno_crm.contact.id", "dyno_crm.contact.tenant_id"],
@@ -35,20 +29,21 @@ class ContactEmail(Base):
             ondelete="CASCADE",
         ),
         Index("ix_contact_email_tenant_contact", "tenant_id", "contact_id"),
-        Index("ix_contact_email_tenant_email", "tenant_id", func.lower("email")),
+        Index("ix_contact_email_tenant_email", "tenant_id", text("lower(email)")),
         Index(
             "ux_contact_email_contact_email",
             "tenant_id",
             "contact_id",
-            func.lower("email"),
+            text("lower(email)"),
             unique=True,
         ),
+        # One primary per contact (partial unique index)
         Index(
             "ux_contact_email_primary_per_contact",
             "tenant_id",
             "contact_id",
             unique=True,
-            postgresql_where=(func.coalesce("is_primary", False) == True),  # noqa: E712
+            postgresql_where=text("is_primary = TRUE"),
         ),
         {"schema": "dyno_crm"},
     )
@@ -72,13 +67,34 @@ class ContactEmail(Base):
 
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow
+        DateTime(timezone=True),
+        nullable=False,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
     )
 
     created_by: Mapped[Optional[uuid.UUID]] = mapped_column(PGUUID(as_uuid=True), nullable=True)
     updated_by: Mapped[Optional[uuid.UUID]] = mapped_column(PGUUID(as_uuid=True), nullable=True)
 
-    contact: Mapped["Contact"] = relationship("Contact", back_populates="emails")
+    # -----------------------------------------------------------------
+    # Relationship to Contact
+    #
+    # IMPORTANT:
+    # The schema has multiple FK paths:
+    #   - contact_id -> contact.id
+    #   - (contact_id, tenant_id) -> (contact.id, contact.tenant_id)
+    #
+    # Without explicit foreign_keys/primaryjoin SQLAlchemy raises:
+    #   AmbiguousForeignKeysError
+    #
+    # We use the composite join for tenant-safe navigation.
+    # -----------------------------------------------------------------
+    contact: Mapped["Contact"] = relationship(
+        "Contact",
+        primaryjoin="and_(Contact.id==ContactEmail.contact_id, Contact.tenant_id==ContactEmail.tenant_id)",
+        foreign_keys="(ContactEmail.contact_id, ContactEmail.tenant_id)",
+        back_populates="emails",
+    )
 
     def __repr__(self) -> str:
         return f"<ContactEmail id={self.id} tenant_id={self.tenant_id} contact_id={self.contact_id} email={self.email}>"

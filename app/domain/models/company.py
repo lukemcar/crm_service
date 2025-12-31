@@ -1,4 +1,3 @@
-# app/models/company.py
 """SQLAlchemy model for Company (dyno_crm.company).
 
 DDL is the source of truth.
@@ -10,7 +9,7 @@ import uuid
 from datetime import datetime
 from typing import List, Optional
 
-from sqlalchemy import Boolean, DateTime, Index, String, UniqueConstraint, func, text
+from sqlalchemy import Boolean, DateTime, Index, String, UniqueConstraint, text
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -27,7 +26,7 @@ class Company(Base):
         Index(
             "ix_company_tenant_domain",
             "tenant_id",
-            func.lower("domain"),
+            text("lower(domain)"),
             postgresql_where=text("domain IS NOT NULL"),
         ),
         {"schema": "dyno_crm"},
@@ -49,8 +48,20 @@ class Company(Base):
     created_by: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     updated_by: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
 
+    # -----------------------------------------------------------------
+    # Child collections
+    #
+    # The schema uses BOTH:
+    #   - FK(company_id) -> company(id)
+    #   - FK(company_id, tenant_id) -> company(id, tenant_id)
+    #
+    # Explicit primaryjoin + foreign_keys avoids AmbiguousForeignKeysError.
+    # -----------------------------------------------------------------
+
     emails: Mapped[List["CompanyEmail"]] = relationship(
         "CompanyEmail",
+        primaryjoin="and_(Company.id==CompanyEmail.company_id, Company.tenant_id==CompanyEmail.tenant_id)",
+        foreign_keys="(CompanyEmail.company_id, CompanyEmail.tenant_id)",
         cascade="all, delete-orphan",
         passive_deletes=True,
         back_populates="company",
@@ -58,6 +69,8 @@ class Company(Base):
 
     phones: Mapped[List["CompanyPhone"]] = relationship(
         "CompanyPhone",
+        primaryjoin="and_(Company.id==CompanyPhone.company_id, Company.tenant_id==CompanyPhone.tenant_id)",
+        foreign_keys="(CompanyPhone.company_id, CompanyPhone.tenant_id)",
         cascade="all, delete-orphan",
         passive_deletes=True,
         back_populates="company",
@@ -65,6 +78,8 @@ class Company(Base):
 
     addresses: Mapped[List["CompanyAddress"]] = relationship(
         "CompanyAddress",
+        primaryjoin="and_(Company.id==CompanyAddress.company_id, Company.tenant_id==CompanyAddress.tenant_id)",
+        foreign_keys="(CompanyAddress.company_id, CompanyAddress.tenant_id)",
         cascade="all, delete-orphan",
         passive_deletes=True,
         back_populates="company",
@@ -72,6 +87,8 @@ class Company(Base):
 
     social_profiles: Mapped[List["CompanySocialProfile"]] = relationship(
         "CompanySocialProfile",
+        primaryjoin="and_(Company.id==CompanySocialProfile.company_id, Company.tenant_id==CompanySocialProfile.tenant_id)",
+        foreign_keys="(CompanySocialProfile.company_id, CompanySocialProfile.tenant_id)",
         cascade="all, delete-orphan",
         passive_deletes=True,
         back_populates="company",
@@ -79,6 +96,8 @@ class Company(Base):
 
     notes: Mapped[List["CompanyNote"]] = relationship(
         "CompanyNote",
+        primaryjoin="and_(Company.id==CompanyNote.company_id, Company.tenant_id==CompanyNote.tenant_id)",
+        foreign_keys="(CompanyNote.company_id, CompanyNote.tenant_id)",
         cascade="all, delete-orphan",
         passive_deletes=True,
         back_populates="company",
@@ -88,17 +107,22 @@ class Company(Base):
     # Company-to-company relationships (directional)
     relationships_from: Mapped[List["CompanyRelationship"]] = relationship(
         "CompanyRelationship",
-        foreign_keys="CompanyRelationship.from_company_id",
+        primaryjoin="and_(Company.id==CompanyRelationship.from_company_id, Company.tenant_id==CompanyRelationship.tenant_id)",
+        foreign_keys="(CompanyRelationship.from_company_id, CompanyRelationship.tenant_id)",
         cascade="all, delete-orphan",
         passive_deletes=True,
         back_populates="from_company",
+        overlaps="relationships_to",
     )
+
     relationships_to: Mapped[List["CompanyRelationship"]] = relationship(
         "CompanyRelationship",
-        foreign_keys="CompanyRelationship.to_company_id",
+        primaryjoin="and_(Company.id==CompanyRelationship.to_company_id, Company.tenant_id==CompanyRelationship.tenant_id)",
+        foreign_keys="(CompanyRelationship.to_company_id, CompanyRelationship.tenant_id)",
         cascade="all, delete-orphan",
         passive_deletes=True,
         back_populates="to_company",
+        overlaps="relationships_from",
     )
 
     def __repr__(self) -> str:
@@ -109,13 +133,6 @@ class Company(Base):
     # -----------------------------------------------------------------
     @property
     def name(self) -> str:
-        """Alias for the company name used by Pydantic schemas.
-
-        The external API refers to the company name as ``name``.  The
-        underlying database column is ``company_name``.  Expose a
-        read/write alias so that response models can access the name
-        attribute via ``from_attributes=True``.
-        """
         return self.company_name
 
     @name.setter
@@ -124,12 +141,6 @@ class Company(Base):
 
     @property
     def website(self) -> Optional[str]:
-        """Alias for the company website/domain used by Pydantic schemas.
-
-        The API refers to the domain as ``website`` to align with
-        user terminology.  The underlying column is ``domain``.  This
-        property exposes a read/write alias.
-        """
         return self.domain
 
     @website.setter

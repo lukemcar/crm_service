@@ -61,7 +61,12 @@ class CompanyNote(Base):
     created_by: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     updated_by: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
 
-    company: Mapped["Company"] = relationship("Company", back_populates="notes")
+    company: Mapped["Company"] = relationship(
+        "Company",
+        primaryjoin="and_(Company.id==CompanyNote.company_id, Company.tenant_id==CompanyNote.tenant_id)",
+        foreign_keys="(CompanyNote.company_id, CompanyNote.tenant_id)",
+        back_populates="notes",
+    )
 
     def __repr__(self) -> str:
         return f"<CompanyNote id={self.id} tenant_id={self.tenant_id} company_id={self.company_id} noted_at={self.noted_at}>"

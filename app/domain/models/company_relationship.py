@@ -87,13 +87,18 @@ class CompanyRelationship(Base):
 
     from_company: Mapped["Company"] = relationship(
         "Company",
-        foreign_keys=[from_company_id],
+        primaryjoin="and_(Company.id==CompanyRelationship.from_company_id, Company.tenant_id==CompanyRelationship.tenant_id)",
+        foreign_keys="(CompanyRelationship.from_company_id, CompanyRelationship.tenant_id)",
         back_populates="relationships_from",
+        overlaps="to_company,relationships_to",
     )
+
     to_company: Mapped["Company"] = relationship(
         "Company",
-        foreign_keys=[to_company_id],
+        primaryjoin="and_(Company.id==CompanyRelationship.to_company_id, Company.tenant_id==CompanyRelationship.tenant_id)",
+        foreign_keys="(CompanyRelationship.to_company_id, CompanyRelationship.tenant_id)",
         back_populates="relationships_to",
+        overlaps="from_company,relationships_from",
     )
 
     def __repr__(self) -> str:

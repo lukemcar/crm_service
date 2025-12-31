@@ -17,13 +17,8 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Header, status
 from sqlalchemy.orm import Session
 
-from app.domain.services.company_service import (
-    list_companies as service_list_companies,
-    create_company as service_create_company,
-    patch_company as service_patch_company,
-    get_company as service_get_company,
-    delete_company as service_delete_company,
-)
+from app.domain.services import company_service  # for mypy namespace package support
+
 from app.domain.schemas.company import (
     TenantCreateCompany,
     CompanyOut,
@@ -60,7 +55,7 @@ def list_companies_endpoint(
     results accordingly.  The total count of records matching the
     criteria is returned alongside the list of companies.
     """
-    companies, total = service_list_companies(
+    companies, total = company_service.list_companies(
         db,
         tenant_id=tenant_id,
         name=name,
@@ -88,7 +83,7 @@ def create_company_endpoint(
     the company and nested objects are set to ``"anonymous"``.
     """
     created_user = x_user or "anonymous"
-    company = service_create_company(
+    company = company_service.create_company(
         db,
         tenant_id=tenant_id,
         request=company_in,
@@ -113,7 +108,7 @@ def patch_company_endpoint(
     performed via the dedicated nested endpoints.
     """
     modified_user = x_user or "anonymous"
-    company = service_patch_company(
+    company = company_service.patch_company(
         db,
         tenant_id=tenant_id,
         company_id=company_id,
@@ -134,7 +129,7 @@ def get_company_endpoint(
     Raises 404 if the company does not exist or does not belong to
     the tenant.
     """
-    company = service_get_company(db, tenant_id=tenant_id, company_id=company_id)
+    company = company_service.get_company(db, tenant_id=tenant_id, company_id=company_id)
     return CompanyOut.model_validate(company, from_attributes=True)
 
 
@@ -152,5 +147,5 @@ def delete_company_endpoint(
     ``X-User`` header is ignored for deletion events; event
     publishers do not include a user field for deletions.
     """
-    service_delete_company(db, tenant_id=tenant_id, company_id=company_id)
+    company_service.delete_company(db, tenant_id=tenant_id, company_id=company_id)
     return None

@@ -21,6 +21,8 @@ from app.core.db import Base
 class Pipeline(Base):
     __tablename__ = "pipelines"
     __table_args__ = (
+        # Required to support composite tenant-safe foreign keys from child tables.
+        UniqueConstraint("id", "tenant_id", name="ux_pipeline_id_tenant"),
         UniqueConstraint("tenant_id", "name", name="ux_pipelines_tenant_name"),
         Index("ix_pipelines_tenant", "tenant_id"),
         {"schema": "dyno_crm"},
@@ -65,15 +67,31 @@ class Pipeline(Base):
         nullable=True,
     )
 
+    # -----------------------------------------------------------------
+    # Child collections
+    #
+    # IMPORTANT:
+    # The schema uses BOTH:
+    #   - FK(pipeline_id) -> pipelines(id)
+    #   - FK(pipeline_id, tenant_id) -> pipelines(id, tenant_id)
+    #
+    # That produces multiple FK paths between the same tables, which causes
+    # SQLAlchemy AmbiguousForeignKeysError unless we explicitly tell it which
+    # columns to use for the relationship. We use the composite join for
+    # tenant-safe relationship navigation.
+    # -----------------------------------------------------------------
+
     stages: Mapped[List["PipelineStage"]] = relationship(
         "PipelineStage",
+        primaryjoin="and_(Pipeline.id==PipelineStage.pipeline_id, Pipeline.tenant_id==PipelineStage.tenant_id)",
+        foreign_keys="(PipelineStage.pipeline_id, PipelineStage.tenant_id)",
         back_populates="pipeline",
         cascade="all, delete-orphan",
         passive_deletes=True,
         order_by="PipelineStage.stage_order",
     )
 
-    # Deals in this pipeline (DB cascades on delete)
+    # Deals in this pipeline (DB cascades on delete).
     deals: Mapped[List["Deal"]] = relationship(
         "Deal",
         back_populates="pipeline",
@@ -81,4 +99,4 @@ class Pipeline(Base):
     )
 
     def __repr__(self) -> str:
-        return f"<Pipeline id={self.id} name={self.name}>"
+        return f"<Pipeline id={self.id} tenant_id={self.tenant_id} name={self.name}>"

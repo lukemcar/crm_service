@@ -10,7 +10,7 @@ import uuid
 from datetime import date, datetime
 from typing import Optional
 
-from sqlalchemy import Boolean, CheckConstraint, DateTime, ForeignKeyConstraint, Index, String, Text, func, text
+from sqlalchemy import Boolean, CheckConstraint, DateTime, ForeignKeyConstraint, Index, String, text
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -18,17 +18,17 @@ from app.core.db import Base
 
 
 _ALLOWED_CONTACT_COMPANY_TYPES = (
-    'employee',
-    'contractor',
-    'client_manager',
-    'vendor_manager',
-    'sales_rep',
-    'executive_sponsor',
-    'billing_contact',
-    'support_contact',
-    'debtor',
-    'creditor',
-    'other'
+    "employee",
+    "contractor",
+    "client_manager",
+    "vendor_manager",
+    "sales_rep",
+    "executive_sponsor",
+    "billing_contact",
+    "support_contact",
+    "debtor",
+    "creditor",
+    "other",
 )
 
 
@@ -104,9 +104,20 @@ class ContactCompanyRelationship(Base):
     created_by: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     updated_by: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
 
-    # Uses backref so you don't have to modify existing Contact/Company models for reverse navigation.
-    contact: Mapped["Contact"] = relationship("Contact", backref="company_relationships")
-    company: Mapped["Company"] = relationship("Company", backref="contact_relationships")
+    # Tenant-safe joins (avoids AmbiguousForeignKeysError)
+    contact: Mapped["Contact"] = relationship(
+        "Contact",
+        primaryjoin="and_(Contact.id==ContactCompanyRelationship.contact_id, Contact.tenant_id==ContactCompanyRelationship.tenant_id)",
+        foreign_keys="(ContactCompanyRelationship.contact_id, ContactCompanyRelationship.tenant_id)",
+        backref="company_relationships",
+    )
+
+    company: Mapped["Company"] = relationship(
+        "Company",
+        primaryjoin="and_(Company.id==ContactCompanyRelationship.company_id, Company.tenant_id==ContactCompanyRelationship.tenant_id)",
+        foreign_keys="(ContactCompanyRelationship.company_id, ContactCompanyRelationship.tenant_id)",
+        backref="contact_relationships",
+    )
 
     def __repr__(self) -> str:
         return (

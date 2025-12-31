@@ -92,8 +92,22 @@ class PipelineStage(Base):
         nullable=True,
     )
 
+    # -----------------------------------------------------------------
+    # Parent relationship
+    #
+    # IMPORTANT:
+    # Multiple FK paths exist between pipeline_stages and pipelines due to:
+    #   - pipeline_id -> pipelines.id
+    #   - (pipeline_id, tenant_id) -> (pipelines.id, pipelines.tenant_id)
+    #
+    # Explicitly define primaryjoin + foreign_keys to avoid ambiguity and
+    # to ensure tenant-safe joins.
+    # -----------------------------------------------------------------
+
     pipeline: Mapped["Pipeline"] = relationship(
         "Pipeline",
+        primaryjoin="and_(Pipeline.id==PipelineStage.pipeline_id, Pipeline.tenant_id==PipelineStage.tenant_id)",
+        foreign_keys="(PipelineStage.pipeline_id, PipelineStage.tenant_id)",
         back_populates="stages",
     )
 

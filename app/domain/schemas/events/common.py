@@ -24,7 +24,7 @@ from datetime import datetime
 from typing import Any, Dict, Optional, Union
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 
 class EventEnvelope(BaseModel):
@@ -60,5 +60,4 @@ class EventEnvelope(BaseModel):
     )
     data: Dict[str, Any] = Field(..., description="Domain payload for the event")
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
