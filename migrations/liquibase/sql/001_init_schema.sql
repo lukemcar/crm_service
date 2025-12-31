@@ -4,19 +4,19 @@
 -- liquibase formatted sql
 -- changeset crm_service:001_init_schema
 
-SET search_path TO dyno_crm;
+SET search_path TO public, dyno_crm;
 
 -- ----------------------------------------------------------------------
 -- Enable pg_jsonschema (requires Supabase Postgres image or extension installed)
 -- ----------------------------------------------------------------------
-CREATE EXTENSION IF NOT EXISTS pg_jsonschema;
+-- CREATE EXTENSION IF NOT EXISTS dyno_crm.pg_jsonschema;
 
 --- schema definition starts here
 
 -- ----------------------------------------------------------------------
 -- pipeline
 -- ----------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS pipeline (
+CREATE TABLE IF NOT EXISTS dyno_crm.pipeline (
     id UUID PRIMARY KEY,
     tenant_id UUID NOT NULL,
     name VARCHAR(255) NOT NULL,
@@ -30,15 +30,15 @@ CREATE TABLE IF NOT EXISTS pipeline (
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS ux_pipeline_tenant_name
-    ON pipeline(tenant_id, name);
+    ON dyno_crm.pipeline(tenant_id, name);
 
 CREATE INDEX IF NOT EXISTS ix_pipeline_tenant
-    ON pipeline(tenant_id);
+    ON dyno_crm.pipeline(tenant_id);
 
 -- ----------------------------------------------------------------------
 -- pipeline_stage (depends on pipeline)
 -- ----------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS pipeline_stage (
+CREATE TABLE IF NOT EXISTS dyno_crm.pipeline_stage (
     id UUID PRIMARY KEY,
     tenant_id UUID NOT NULL,
     pipeline_id UUID NOT NULL,
@@ -65,20 +65,20 @@ CREATE TABLE IF NOT EXISTS pipeline_stage (
 
 -- Ordering is tenant-safe via pipeline
 CREATE UNIQUE INDEX IF NOT EXISTS ux_pipeline_stage_pipeline_order
-    ON pipeline_stage(pipeline_id, stage_order);
+    ON dyno_crm.pipeline_stage(pipeline_id, stage_order);
 
 -- Names are tenant-safe via pipeline
 CREATE UNIQUE INDEX IF NOT EXISTS ux_pipeline_stage_pipeline_name
-    ON pipeline_stage(pipeline_id, name);
+    ON dyno_crm.pipeline_stage(pipeline_id, name);
 
 -- Direct tenant access (queries, partition pruning)
 CREATE INDEX IF NOT EXISTS ix_pipeline_stage_tenant
-    ON pipeline_stage(tenant_id);
+    ON dyno_crm.pipeline_stage(tenant_id);
 
 -- ----------------------------------------------------------------------
 -- Lead simplified model, loose constraints but similar to contact
 -- ----------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS lead (
+CREATE TABLE IF NOT EXISTS dyno_crm.lead (
     id UUID PRIMARY KEY,
     tenant_id UUID NOT NULL,
 
@@ -96,14 +96,11 @@ CREATE TABLE IF NOT EXISTS lead (
     CONSTRAINT ux_lead_id_tenant UNIQUE (id, tenant_id),
 
     -- pg_jsonschema-based JSON validation.
-    -- This preserves the intent of the previous check:
-    --  - lead_data must be an object (if non-null)
-    --  - only these top-level keys are allowed
-    --  - phone_numbers/emails/social_profiles are objects of { "<any>": "<string>" }
-    --  - addresses is object of { "<any>": { line1/line2/city/region/postal_code/country: string } }
-    --  - notes is object of { "<any>": { created_at, updated_at, text: string } } and these 3 fields are required
+    -- NOTE: pg_jsonschema function signature is:
+    --   jsonb_matches_schema(schema json, instance jsonb)
+    -- The only fix applied here is casting the schema literal to ::json (not ::jsonb).
     CONSTRAINT chk_lead_lead_data_schema CHECK (
-        lead_data IS NULL OR jsonb_matches_schema(
+        lead_data IS NULL OR public.jsonb_matches_schema(
             $$
             {
               "type": "object",
@@ -166,17 +163,17 @@ CREATE TABLE IF NOT EXISTS lead (
                 }
               }
             }
-            $$::jsonb,
+            $$::json,
             lead_data
         )
     )
 );
 
 CREATE INDEX IF NOT EXISTS ix_lead_tenant
-    ON lead(tenant_id);
+    ON dyno_crm.lead(tenant_id);
 
 CREATE INDEX IF NOT EXISTS ix_lead_tenant_last_first
-    ON lead(tenant_id, last_name, first_name);
+    ON dyno_crm.lead(tenant_id, last_name, first_name);
 
 -- =====================================================================
 -- CONTACT DOMAIN
@@ -185,7 +182,7 @@ CREATE INDEX IF NOT EXISTS ix_lead_tenant_last_first
 -- ----------------------------------------------------------------------
 -- contact
 -- ----------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS contact (
+CREATE TABLE IF NOT EXISTS dyno_crm.contact (
     id UUID PRIMARY KEY,
     tenant_id UUID NOT NULL,
 
@@ -206,15 +203,15 @@ CREATE TABLE IF NOT EXISTS contact (
 );
 
 CREATE INDEX IF NOT EXISTS ix_contact_tenant
-    ON contact(tenant_id);
+    ON dyno_crm.contact(tenant_id);
 
 CREATE INDEX IF NOT EXISTS ix_contact_tenant_last_first
-    ON contact(tenant_id, last_name, first_name);
+    ON dyno_crm.contact(tenant_id, last_name, first_name);
 
 -- ----------------------------------------------------------------------
 -- contact_email (depends on contact)
 -- ----------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS contact_email (
+CREATE TABLE IF NOT EXISTS dyno_crm.contact_email (
     id UUID PRIMARY KEY,
     tenant_id UUID NOT NULL,
     contact_id UUID NOT NULL,
@@ -238,24 +235,24 @@ CREATE TABLE IF NOT EXISTS contact_email (
 );
 
 CREATE INDEX IF NOT EXISTS ix_contact_email_tenant_contact
-    ON contact_email(tenant_id, contact_id);
+    ON dyno_crm.contact_email(tenant_id, contact_id);
 
 CREATE INDEX IF NOT EXISTS ix_contact_email_tenant_email
-    ON contact_email(tenant_id, lower(email));
+    ON dyno_crm.contact_email(tenant_id, lower(email));
 
 -- Dedupe within a contact
 CREATE UNIQUE INDEX IF NOT EXISTS ux_contact_email_contact_email
-    ON contact_email(tenant_id, contact_id, lower(email));
+    ON dyno_crm.contact_email(tenant_id, contact_id, lower(email));
 
 -- One primary per contact
 CREATE UNIQUE INDEX IF NOT EXISTS ux_contact_email_primary_per_contact
-    ON contact_email(tenant_id, contact_id)
+    ON dyno_crm.contact_email(tenant_id, contact_id)
     WHERE is_primary = TRUE;
 
 -- ----------------------------------------------------------------------
 -- contact_phone (depends on contact)
 -- ----------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS contact_phone (
+CREATE TABLE IF NOT EXISTS dyno_crm.contact_phone (
     id UUID PRIMARY KEY,
     tenant_id UUID NOT NULL,
     contact_id UUID NOT NULL,
@@ -283,31 +280,31 @@ CREATE TABLE IF NOT EXISTS contact_phone (
 );
 
 CREATE INDEX IF NOT EXISTS ix_contact_phone_tenant_contact
-    ON contact_phone(tenant_id, contact_id);
+    ON dyno_crm.contact_phone(tenant_id, contact_id);
 
 -- Prefer searching by normalized phone when available
 CREATE INDEX IF NOT EXISTS ix_contact_phone_tenant_phone_e164
-    ON contact_phone(tenant_id, phone_e164)
+    ON dyno_crm.contact_phone(tenant_id, phone_e164)
     WHERE phone_e164 IS NOT NULL;
 
 -- Fallback search (raw)
 CREATE INDEX IF NOT EXISTS ix_contact_phone_tenant_phone_raw
-    ON contact_phone(tenant_id, phone_raw);
+    ON dyno_crm.contact_phone(tenant_id, phone_raw);
 
 -- Dedupe within a contact (use e164 when available)
 CREATE UNIQUE INDEX IF NOT EXISTS ux_contact_phone_contact_phone_e164
-    ON contact_phone(tenant_id, contact_id, phone_e164)
+    ON dyno_crm.contact_phone(tenant_id, contact_id, phone_e164)
     WHERE phone_e164 IS NOT NULL;
 
 -- One primary per contact
 CREATE UNIQUE INDEX IF NOT EXISTS ux_contact_phone_primary_per_contact
-    ON contact_phone(tenant_id, contact_id)
+    ON dyno_crm.contact_phone(tenant_id, contact_id)
     WHERE is_primary = TRUE;
 
 -- ----------------------------------------------------------------------
 -- contact_address (depends on contact)
 -- ----------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS contact_address (
+CREATE TABLE IF NOT EXISTS dyno_crm.contact_address (
     id UUID PRIMARY KEY,
     tenant_id UUID NOT NULL,
     contact_id UUID NOT NULL,
@@ -337,16 +334,16 @@ CREATE TABLE IF NOT EXISTS contact_address (
 );
 
 CREATE INDEX IF NOT EXISTS ix_contact_address_tenant_contact
-    ON contact_address(tenant_id, contact_id);
+    ON dyno_crm.contact_address(tenant_id, contact_id);
 
 CREATE UNIQUE INDEX IF NOT EXISTS ux_contact_address_primary_per_contact
-    ON contact_address(tenant_id, contact_id)
+    ON dyno_crm.contact_address(tenant_id, contact_id)
     WHERE is_primary = TRUE;
 
 -- ----------------------------------------------------------------------
 -- contact_social_profile (depends on contact)
 -- ----------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS contact_social_profile (
+CREATE TABLE IF NOT EXISTS dyno_crm.contact_social_profile (
     id UUID PRIMARY KEY,
     tenant_id UUID NOT NULL,
     contact_id UUID NOT NULL,
@@ -384,16 +381,16 @@ CREATE TABLE IF NOT EXISTS contact_social_profile (
 );
 
 CREATE INDEX IF NOT EXISTS ix_contact_social_profile_tenant_contact
-    ON contact_social_profile(tenant_id, contact_id);
+    ON dyno_crm.contact_social_profile(tenant_id, contact_id);
 
 -- Case-insensitive uniqueness by type per contact (recommended)
 CREATE UNIQUE INDEX IF NOT EXISTS ux_contact_social_profile_contact_type
-    ON contact_social_profile(tenant_id, contact_id, lower(profile_type));
+    ON dyno_crm.contact_social_profile(tenant_id, contact_id, lower(profile_type));
 
 -- ----------------------------------------------------------------------
 -- contact_note (depends on contact)
 -- ----------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS contact_note (
+CREATE TABLE IF NOT EXISTS dyno_crm.contact_note (
     id UUID PRIMARY KEY,
     tenant_id UUID NOT NULL,
     contact_id UUID NOT NULL,
@@ -418,13 +415,13 @@ CREATE TABLE IF NOT EXISTS contact_note (
 );
 
 CREATE INDEX IF NOT EXISTS ix_contact_note_tenant_contact_noted_at
-    ON contact_note(tenant_id, contact_id, noted_at DESC);
+    ON dyno_crm.contact_note(tenant_id, contact_id, noted_at DESC);
 
 CREATE INDEX IF NOT EXISTS ix_contact_note_tenant_noted_at
-    ON contact_note(tenant_id, noted_at DESC);
+    ON dyno_crm.contact_note(tenant_id, noted_at DESC);
 
 CREATE INDEX IF NOT EXISTS ix_contact_note_tenant_note_type
-    ON contact_note(tenant_id, note_type);
+    ON dyno_crm.contact_note(tenant_id, note_type);
 
 -- ======================================================================
 -- COMPANY DOMAIN
@@ -433,7 +430,7 @@ CREATE INDEX IF NOT EXISTS ix_contact_note_tenant_note_type
 -- ----------------------------------------------------------------------
 -- company
 -- ----------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS company (
+CREATE TABLE IF NOT EXISTS dyno_crm.company (
     id UUID PRIMARY KEY,
     tenant_id UUID NOT NULL,
 
@@ -452,22 +449,22 @@ CREATE TABLE IF NOT EXISTS company (
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS ux_company_tenant_company_name
-    ON company(tenant_id, company_name);
+    ON dyno_crm.company(tenant_id, company_name);
 
 CREATE INDEX IF NOT EXISTS ix_company_tenant
-    ON company(tenant_id);
+    ON dyno_crm.company(tenant_id);
 
 CREATE INDEX IF NOT EXISTS ix_company_tenant_name
-    ON company(tenant_id, company_name);
+    ON dyno_crm.company(tenant_id, company_name);
 
 CREATE INDEX IF NOT EXISTS ix_company_tenant_domain
-    ON company(tenant_id, lower(domain))
+    ON dyno_crm.company(tenant_id, lower(domain))
     WHERE domain IS NOT NULL;
 
 -- ----------------------------------------------------------------------
 -- company_email (depends on company)
 -- ----------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS company_email (
+CREATE TABLE IF NOT EXISTS dyno_crm.company_email (
     id UUID PRIMARY KEY,
     tenant_id UUID NOT NULL,
     company_id UUID NOT NULL,
@@ -494,22 +491,22 @@ CREATE TABLE IF NOT EXISTS company_email (
 );
 
 CREATE INDEX IF NOT EXISTS ix_company_email_tenant_company
-    ON company_email(tenant_id, company_id);
+    ON dyno_crm.company_email(tenant_id, company_id);
 
 CREATE INDEX IF NOT EXISTS ix_company_email_tenant_email
-    ON company_email(tenant_id, lower(email));
+    ON dyno_crm.company_email(tenant_id, lower(email));
 
 CREATE UNIQUE INDEX IF NOT EXISTS ux_company_email_company_email
-    ON company_email(tenant_id, company_id, lower(email));
+    ON dyno_crm.company_email(tenant_id, company_id, lower(email));
 
 CREATE UNIQUE INDEX IF NOT EXISTS ux_company_email_primary_per_company
-    ON company_email(tenant_id, company_id)
+    ON dyno_crm.company_email(tenant_id, company_id)
     WHERE is_primary = TRUE;
 
 -- ----------------------------------------------------------------------
 -- company_phone (depends on company)
 -- ----------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS company_phone (
+CREATE TABLE IF NOT EXISTS dyno_crm.company_phone (
     id UUID PRIMARY KEY,
     tenant_id UUID NOT NULL,
     company_id UUID NOT NULL,
@@ -541,27 +538,27 @@ CREATE TABLE IF NOT EXISTS company_phone (
 );
 
 CREATE INDEX IF NOT EXISTS ix_company_phone_tenant_company
-    ON company_phone(tenant_id, company_id);
+    ON dyno_crm.company_phone(tenant_id, company_id);
 
 CREATE INDEX IF NOT EXISTS ix_company_phone_tenant_phone_raw
-    ON company_phone(tenant_id, phone_raw);
+    ON dyno_crm.company_phone(tenant_id, phone_raw);
 
 CREATE INDEX IF NOT EXISTS ix_company_phone_tenant_phone_e164
-    ON company_phone(tenant_id, phone_e164)
+    ON dyno_crm.company_phone(tenant_id, phone_e164)
     WHERE phone_e164 IS NOT NULL;
 
 CREATE UNIQUE INDEX IF NOT EXISTS ux_company_phone_company_phone_e164
-    ON company_phone(tenant_id, company_id, phone_e164)
+    ON dyno_crm.company_phone(tenant_id, company_id, phone_e164)
     WHERE phone_e164 IS NOT NULL;
 
 CREATE UNIQUE INDEX IF NOT EXISTS ux_company_phone_primary_per_company
-    ON company_phone(tenant_id, company_id)
+    ON dyno_crm.company_phone(tenant_id, company_id)
     WHERE is_primary = TRUE;
 
 -- ----------------------------------------------------------------------
 -- company_address (depends on company)
 -- ----------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS company_address (
+CREATE TABLE IF NOT EXISTS dyno_crm.company_address (
     id UUID PRIMARY KEY,
     tenant_id UUID NOT NULL,
     company_id UUID NOT NULL,
@@ -594,16 +591,16 @@ CREATE TABLE IF NOT EXISTS company_address (
 );
 
 CREATE INDEX IF NOT EXISTS ix_company_address_tenant_company
-    ON company_address(tenant_id, company_id);
+    ON dyno_crm.company_address(tenant_id, company_id);
 
 CREATE UNIQUE INDEX IF NOT EXISTS ux_company_address_primary_per_company
-    ON company_address(tenant_id, company_id)
+    ON dyno_crm.company_address(tenant_id, company_id)
     WHERE is_primary = TRUE;
 
 -- ----------------------------------------------------------------------
 -- company_social_profile (depends on company)
 -- ----------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS company_social_profile (
+CREATE TABLE IF NOT EXISTS dyno_crm.company_social_profile (
     id UUID PRIMARY KEY,
     tenant_id UUID NOT NULL,
     company_id UUID NOT NULL,
@@ -640,15 +637,15 @@ CREATE TABLE IF NOT EXISTS company_social_profile (
 );
 
 CREATE INDEX IF NOT EXISTS ix_company_social_profile_tenant_company
-    ON company_social_profile(tenant_id, company_id);
+    ON dyno_crm.company_social_profile(tenant_id, company_id);
 
 CREATE UNIQUE INDEX IF NOT EXISTS ux_company_social_profile_company_type
-    ON company_social_profile(tenant_id, company_id, lower(profile_type));
+    ON dyno_crm.company_social_profile(tenant_id, company_id, lower(profile_type));
 
 -- ----------------------------------------------------------------------
 -- company_note (depends on company)
 -- ----------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS company_note (
+CREATE TABLE IF NOT EXISTS dyno_crm.company_note (
     id UUID PRIMARY KEY,
     tenant_id UUID NOT NULL,
     company_id UUID NOT NULL,
@@ -676,18 +673,18 @@ CREATE TABLE IF NOT EXISTS company_note (
 );
 
 CREATE INDEX IF NOT EXISTS ix_company_note_tenant_company_noted_at
-    ON company_note(tenant_id, company_id, noted_at DESC);
+    ON dyno_crm.company_note(tenant_id, company_id, noted_at DESC);
 
 CREATE INDEX IF NOT EXISTS ix_company_note_tenant_noted_at
-    ON company_note(tenant_id, noted_at DESC);
+    ON dyno_crm.company_note(tenant_id, noted_at DESC);
 
 CREATE INDEX IF NOT EXISTS ix_company_note_tenant_note_type
-    ON company_note(tenant_id, note_type);
+    ON dyno_crm.company_note(tenant_id, note_type);
 
 -- ----------------------------------------------------------------------
 -- company_relationship (company-to-company)
 -- ----------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS company_relationship (
+CREATE TABLE IF NOT EXISTS dyno_crm.company_relationship (
     id UUID PRIMARY KEY,
     tenant_id UUID NOT NULL,
 
@@ -744,18 +741,18 @@ CREATE TABLE IF NOT EXISTS company_relationship (
 );
 
 CREATE INDEX IF NOT EXISTS ix_company_relationship_tenant_from
-    ON company_relationship(tenant_id, from_company_id);
+    ON dyno_crm.company_relationship(tenant_id, from_company_id);
 
 CREATE INDEX IF NOT EXISTS ix_company_relationship_tenant_to
-    ON company_relationship(tenant_id, to_company_id);
+    ON dyno_crm.company_relationship(tenant_id, to_company_id);
 
 CREATE UNIQUE INDEX IF NOT EXISTS ux_company_relationship_unique
-    ON company_relationship(tenant_id, from_company_id, to_company_id, from_role, to_role);
+    ON dyno_crm.company_relationship(tenant_id, from_company_id, to_company_id, from_role, to_role);
 
 -- ----------------------------------------------------------------------
 -- contact_company_relationship
 -- ----------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS contact_company_relationship (
+CREATE TABLE IF NOT EXISTS dyno_crm.contact_company_relationship (
     id UUID PRIMARY KEY,
     tenant_id UUID NOT NULL,
 
@@ -815,14 +812,14 @@ CREATE TABLE IF NOT EXISTS contact_company_relationship (
 );
 
 CREATE INDEX IF NOT EXISTS ix_contact_company_relationship_tenant_contact
-    ON contact_company_relationship(tenant_id, contact_id);
+    ON dyno_crm.contact_company_relationship(tenant_id, contact_id);
 
 CREATE INDEX IF NOT EXISTS ix_contact_company_relationship_tenant_company
-    ON contact_company_relationship(tenant_id, company_id);
+    ON dyno_crm.contact_company_relationship(tenant_id, company_id);
 
 CREATE UNIQUE INDEX IF NOT EXISTS ux_contact_company_relationship_primary_per_contact
-    ON contact_company_relationship(tenant_id, contact_id)
+    ON dyno_crm.contact_company_relationship(tenant_id, contact_id)
     WHERE is_primary = TRUE;
 
 CREATE UNIQUE INDEX IF NOT EXISTS ux_contact_company_relationship_unique
-    ON contact_company_relationship(tenant_id, contact_id, company_id, relationship_type);
+    ON dyno_crm.contact_company_relationship(tenant_id, contact_id, company_id, relationship_type);

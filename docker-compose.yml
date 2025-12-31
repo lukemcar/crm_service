@@ -2,10 +2,10 @@ version: '3.9'
 
 services:
   db:
-    image: postgres:15-alpine
+    image: supabase/postgres:17.4.1.064
     container_name: crm_service_db
     environment:
-      POSTGRES_USER: postgres
+      POSTGRES_USER: supabase_admin
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: postgres
     ports:
@@ -26,8 +26,9 @@ services:
       - '3672:5672'
       - '21672:15672'
     environment:
-      RABBITMQ_DEFAULT_USER: guest
-      RABBITMQ_DEFAULT_PASS: guest
+      RABBITMQ_DEFAULT_USER: tenant_service
+      RABBITMQ_DEFAULT_PASS: tenant_service
+      RABBITMQ_DEFAULT_VHOST: tenant_service
 
   jaeger:
     image: jaegertracing/all-in-one:1.51
@@ -51,7 +52,7 @@ services:
       - jaeger
     environment:
       DATABASE_URL: postgresql+psycopg2://crm_service_app:2cHfTngNdjFIX78JUz2Z91iDpQKGJPWo@db:5432/crm_service
-      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672//
+      RABBITMQ_URL: amqp://tenant_service:tenant_service@rabbitmq:5672/tenant_service
 
       LIQUIBASE_ENABLED: "true"
       LIQUIBASE_PROPERTY_FILE: "migrations/liquibase/docker-liquibase.properties"
@@ -65,7 +66,7 @@ services:
       OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
       OTEL_SERVICE_NAME: dyno-crm-api
       OTEL_TRACES_EXPORTER: otlp
-      
+
       LOG_LEVEL: INFO
     ports:
       - '8001:8000'
@@ -80,7 +81,7 @@ services:
       - jaeger
     environment:
       DATABASE_URL: postgresql+psycopg2://crm_service_app:2cHfTngNdjFIX78JUz2Z91iDpQKGJPWo@db:5432/crm_service
-      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672//
+      RABBITMQ_URL: amqp://tenant_service:tenant_service@rabbitmq:5672/tenant_service
       OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4318
       OTEL_SERVICE_NAME: dyno-crm-worker
       LOG_LEVEL: INFO

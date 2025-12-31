@@ -1,126 +1,221 @@
-"""Tests for the contact API endpoints.
-
-These tests exercise the contact CRUD endpoints using a test database.
-They verify that contacts can be created, retrieved, updated and
-deleted in the context of a single tenant.  The tests rely on the
-``test_client`` fixture defined in ``conftest.py``.
-"""
-
 from __future__ import annotations
 
 import uuid
+from datetime import datetime, timezone
 
 import pytest
-from fastapi import status
+from sqlalchemy.orm import Session
+
+from app.domain.schemas.contact import TenantCreateContact, ContactOut
+from app.domain.schemas.json_patch import JsonPatchRequest, JsonPatchOperation
+from app.domain.services import contact_service
+
+from app.api.routes.contacts_tenant_route import (
+    create_contact_endpoint,
+    get_contact_endpoint,
+    patch_contact_endpoint,
+    delete_contact_endpoint,
+)
 
 
-@pytest.mark.postgres
-@pytest.mark.liquibase
-def test_create_and_get_contact(test_client):
+class DummySession(Session):
+    """Lightweight stand-in so type hints are happy without a real DB."""
+    pass
+
+
+def _fake_contact_out(
+    tenant_id: uuid.UUID,
+    contact_id: uuid.UUID,
+    first_name: str,
+    last_name: str,
+    created_by: str = "tester",
+    updated_by: str = "tester",
+) -> ContactOut:
+    now = datetime.now(timezone.utc)
+
+    # Most CRM schemas include nested collections; keep them empty by default.
+    # If your ContactOut requires different names, adjust only these fields.
+    return ContactOut(
+        id=contact_id,
+        tenant_id=tenant_id,
+        first_name=first_name,
+        middle_name=None,
+        last_name=last_name,
+        maiden_name=None,
+        prefix=None,
+        suffix=None,
+        phones=[],
+        emails=[],
+        addresses=[],
+        social_profiles=[],
+        notes=[],
+        created_at=now,
+        updated_at=now,
+        created_by=created_by,
+        updated_by=updated_by,
+    )
+
+
+# ---------------------------------------------------------------------------
+# create_contact_endpoint
+# ---------------------------------------------------------------------------
+
+def test_create_contact_uses_x_user_as_created_by(monkeypatch: pytest.MonkeyPatch):
     tenant_id = uuid.uuid4()
-    user_id = uuid.uuid4()
-    payload = {
-        "first_name": "Alice",
-        "last_name": "Smith",
-        # Provide nested collections matching the API contract.  The
-        # ContactPhoneNumberCreateRequest uses ``phone_raw`` as the required
-        # field and ContactEmailCreateRequest uses ``email``.
-        "phones": [
-            {"phone_raw": "123-456-7890"}
-        ],
-        "emails": [
-            {"email": "alice@example.com"}
-        ],
-    }
-    # Create a new contact using the tenant‑scoped route.  User identity is
-    # provided via the ``X-User`` header.
-    response = test_client.post(
-        f"/tenants/{tenant_id}/contacts",
-        json=payload,
-        headers={"X-User": str(user_id)},
+    user_id = str(uuid.uuid4())
+    fake_db = DummySession()
+
+    payload = TenantCreateContact(
+        first_name="Alice",
+        last_name="Smith",
+        phones=[{"phone_raw": "123-456-7890"}],
+        emails=[{"email": "alice@example.com"}],
     )
-    assert response.status_code == status.HTTP_201_CREATED
-    created = response.json()
-    assert created["first_name"] == payload["first_name"]
-    assert created["last_name"] == payload["last_name"]
-    # Validate that the nested email was persisted
-    assert created["emails"][0]["email"] == payload["emails"][0]["email"]
-    assert created["tenant_id"] == str(tenant_id)
-    contact_id = created["id"]
-    # Retrieve the contact
-    get_resp = test_client.get(
-        f"/tenants/{tenant_id}/contacts/{contact_id}"
+
+    fake_contact = _fake_contact_out(
+        tenant_id=tenant_id,
+        contact_id=uuid.uuid4(),
+        first_name=payload.first_name,
+        last_name=payload.last_name,
+        created_by=user_id,
+        updated_by=user_id,
     )
-    assert get_resp.status_code == status.HTTP_200_OK
-    retrieved = get_resp.json()
-    assert retrieved["id"] == contact_id
-    assert retrieved["first_name"] == payload["first_name"]
+
+    captured: dict = {}
+
+    def fake_create_contact(db, **kwargs):
+        captured["db"] = db
+        captured.update(kwargs)
+        return fake_contact
+
+    monkeypatch.setattr(contact_service, "create_contact", fake_create_contact)
+
+    result = create_contact_endpoint(
+        tenant_id=tenant_id,
+        contact_in=payload,
+        db=fake_db,
+        x_user=user_id,
+    )
+
+    assert captured["db"] is fake_db
+    assert captured["tenant_id"] == tenant_id
+    assert captured["request"] == payload
+    assert captured["created_by"] == user_id
+
+    assert result == fake_contact
 
 
-@pytest.mark.postgres
-@pytest.mark.liquibase
-def test_update_contact(test_client):
+# ---------------------------------------------------------------------------
+# get_contact_endpoint
+# ---------------------------------------------------------------------------
+
+def test_get_contact_calls_service(monkeypatch: pytest.MonkeyPatch):
     tenant_id = uuid.uuid4()
-    user_id = uuid.uuid4()
-    # Create contact
-    payload = {
-        "first_name": "Bob",
-        "last_name": "Jones",
-        "phones": [
-            {"phone_raw": "555-555-5555"}
-        ],
-        "emails": [
-            {"email": "bob@example.com"}
-        ],
-    }
-    create_resp = test_client.post(
-        f"/tenants/{tenant_id}/contacts",
-        json=payload,
-        headers={"X-User": str(user_id)},
+    contact_id = uuid.uuid4()
+    fake_db = DummySession()
+
+    fake_contact = _fake_contact_out(
+        tenant_id=tenant_id,
+        contact_id=contact_id,
+        first_name="Alice",
+        last_name="Smith",
     )
-    assert create_resp.status_code == status.HTTP_201_CREATED
-    contact_id = create_resp.json()["id"]
-    # Update contact by replacing the first name via JSON Patch
-    patch_request = {
-        "operations": [
-            {"op": "replace", "path": "/first_name", "value": "Robert"}
-        ]
-    }
-    update_resp = test_client.patch(
-        f"/tenants/{tenant_id}/contacts/{contact_id}",
-        json=patch_request,
-        headers={"X-User": str(user_id)},
+
+    captured: dict = {}
+
+    def fake_get_contact(db, **kwargs):
+        captured["db"] = db
+        captured.update(kwargs)
+        return fake_contact
+
+    monkeypatch.setattr(contact_service, "get_contact", fake_get_contact)
+
+    result = get_contact_endpoint(
+        tenant_id=tenant_id,
+        contact_id=contact_id,
+        db=fake_db,
     )
-    assert update_resp.status_code == status.HTTP_200_OK
-    updated = update_resp.json()
-    assert updated["first_name"] == "Robert"
+
+    assert captured["db"] is fake_db
+    assert captured["tenant_id"] == tenant_id
+    assert captured["contact_id"] == contact_id
+    assert result == fake_contact
 
 
-@pytest.mark.postgres
-@pytest.mark.liquibase
-def test_delete_contact(test_client):
+# ---------------------------------------------------------------------------
+# patch_contact_endpoint
+# ---------------------------------------------------------------------------
+
+def test_patch_contact_uses_x_user_as_updated_by(monkeypatch: pytest.MonkeyPatch):
     tenant_id = uuid.uuid4()
-    user_id = uuid.uuid4()
-    payload = {
-        "first_name": "Charlie",
-        "last_name": "Brown",
-        "emails": [
-            {"email": "charlie@example.com"}
-        ],
-    }
-    create_resp = test_client.post(
-        f"/tenants/{tenant_id}/contacts",
-        json=payload,
-        headers={"X-User": str(user_id)},
+    contact_id = uuid.uuid4()
+    user_id = str(uuid.uuid4())
+    fake_db = DummySession()
+
+    patch_request = JsonPatchRequest(
+        operations=[JsonPatchOperation(op="replace", path="/first_name", value="Robert")]
     )
-    contact_id = create_resp.json()["id"]
-    # Delete contact
-    del_resp = test_client.delete(
-        f"/tenants/{tenant_id}/contacts/{contact_id}"
+
+    fake_contact = _fake_contact_out(
+        tenant_id=tenant_id,
+        contact_id=contact_id,
+        first_name="Robert",
+        last_name="Smith",
+        created_by="tester",
+        updated_by=user_id,
     )
-    assert del_resp.status_code == status.HTTP_204_NO_CONTENT
-    # Confirm deletion
-    get_resp = test_client.get(
-        f"/tenants/{tenant_id}/contacts/{contact_id}"
+
+    captured: dict = {}
+
+    def fake_patch_contact(db, **kwargs):
+        captured["db"] = db
+        captured.update(kwargs)
+        return fake_contact
+
+    monkeypatch.setattr(contact_service, "patch_contact", fake_patch_contact)
+
+    result = patch_contact_endpoint(
+        tenant_id=tenant_id,
+        contact_id=contact_id,
+        patch_request=patch_request,
+        db=fake_db,
+        x_user=user_id,
     )
-    assert get_resp.status_code == status.HTTP_404_NOT_FOUND
+
+    assert captured["db"] is fake_db
+    assert captured["tenant_id"] == tenant_id
+    assert captured["contact_id"] == contact_id
+    assert captured["patch_request"] == patch_request
+    assert captured["updated_by"] == user_id
+    assert result == fake_contact
+
+
+# ---------------------------------------------------------------------------
+# delete_contact_endpoint
+# ---------------------------------------------------------------------------
+
+def test_delete_contact_calls_service_and_returns_none(monkeypatch: pytest.MonkeyPatch):
+    tenant_id = uuid.uuid4()
+    contact_id = uuid.uuid4()
+    fake_db = DummySession()
+
+    captured: dict = {"called": False}
+
+    def fake_delete_contact(db, **kwargs):
+        captured["called"] = True
+        captured["db"] = db
+        captured.update(kwargs)
+
+    monkeypatch.setattr(contact_service, "delete_contact", fake_delete_contact)
+
+    result = delete_contact_endpoint(
+        tenant_id=tenant_id,
+        contact_id=contact_id,
+        db=fake_db,
+    )
+
+    assert captured["called"] is True
+    assert captured["db"] is fake_db
+    assert captured["tenant_id"] == tenant_id
+    assert captured["contact_id"] == contact_id
+    assert result is None

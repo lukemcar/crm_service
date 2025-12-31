@@ -1,9 +1,24 @@
+-- DO $$
+-- BEGIN
+--   IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'supabase_admin') THEN
+--     CREATE ROLE supabase_admin WITH LOGIN SUPERUSER PASSWORD 'postgres';
+--   END IF;
+-- END $$;
+
+
+
 -- init-database.sql
 -- Create the main database
 CREATE DATABASE crm_service;
 
 -- Connect to the new database
 \c crm_service;
+
+-- ==============================================
+-- Enable extensions
+-- ==============================================
+
+CREATE EXTENSION IF NOT EXISTS pg_jsonschema;
 
 -- ==============================================
 -- Create users

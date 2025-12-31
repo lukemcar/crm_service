@@ -15,13 +15,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
-from app.domain.services.contact_service import (
-    list_contacts as service_list_contacts,
-    get_contact as service_get_contact,
-    create_contact as service_create_contact,
-    patch_contact as service_patch_contact,
-    delete_contact as service_delete_contact,
-)
+from app.domain.services import contact_service
 from app.domain.schemas.contact import (
     TenantCreateContact,
     ContactOut,
@@ -53,7 +47,7 @@ def list_contacts_endpoint(
     Returns a paginated list of contacts matching the optional search
     criteria.  Results are wrapped in a pagination envelope.
     """
-    contacts, total = service_list_contacts(
+    contacts, total = contact_service.list_contacts(
         db,
         tenant_id=tenant_id,
         first_name=first_name,
@@ -77,7 +71,7 @@ def create_contact_endpoint(
 ):
     """Create a new contact for the tenant."""
     created_user = x_user or "anonymous"
-    contact = service_create_contact(
+    contact = contact_service.create_contact(
         db,
         tenant_id=tenant_id,
         request=contact_in,
@@ -93,7 +87,7 @@ def get_contact_endpoint(
     db: Session = Depends(get_db),
 ):
     """Retrieve a contact by ID within the tenant."""
-    contact = service_get_contact(db, tenant_id=tenant_id, contact_id=contact_id)
+    contact = contact_service.get_contact(db, tenant_id=tenant_id, contact_id=contact_id)
     return ContactOut.model_validate(contact, from_attributes=True)
 
 
@@ -107,7 +101,7 @@ def patch_contact_endpoint(
 ):
     """Apply JSON Patch to a contact."""
     updated_user = x_user or "anonymous"
-    contact = service_patch_contact(
+    contact = contact_service.patch_contact(
         db,
         tenant_id=tenant_id,
         contact_id=contact_id,
@@ -124,5 +118,5 @@ def delete_contact_endpoint(
     db: Session = Depends(get_db),
 ):
     """Delete a contact for the tenant."""
-    service_delete_contact(db, tenant_id=tenant_id, contact_id=contact_id)
+    contact_service.delete_contact(db, tenant_id=tenant_id, contact_id=contact_id)
     return None

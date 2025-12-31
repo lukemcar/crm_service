@@ -22,6 +22,7 @@ from datetime import datetime
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 from fastapi import HTTPException, status
+from sqlalchemy.exc import DBAPIError, IntegrityError
 from sqlalchemy.orm import Session
 
 # Import the CRM domain models rather than relying on placeholder names.
@@ -65,6 +66,8 @@ from app.messaging.producers.contact_company_relationship_producer import (
     ContactCompanyRelationshipMessageProducer as ContactCompanyRelationshipProducer,
 )
 from app.domain.schemas.json_patch import JsonPatchRequest, JsonPatchOperation
+
+from .common_service import _http_exception_from_db_error
 
 logger = logging.getLogger("company_service")
 
@@ -391,9 +394,22 @@ def create_company(
             updated_by=created_by,
         )
         company.notes.append(note)
+
     db.add(company)
-    db.commit()
-    db.refresh(company)
+
+    try:
+        db.commit()
+        db.refresh(company)
+    except IntegrityError as e:
+        db.rollback()
+        raise _http_exception_from_db_error(e) from e
+    except DBAPIError as e:
+        db.rollback()
+        raise _http_exception_from_db_error(e) from e
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Unexpected error while creating company") from e
+
     # Emit event
     snapshot = _company_snapshot(company)
     CompanyProducer.send_company_created(tenant_id=tenant_id, payload=snapshot)
