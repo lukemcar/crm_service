@@ -1,3 +1,29 @@
+## [2025-12-31] – DB error handling and rollback standardization
+
+### Added
+- Introduced `commit_or_raise` helper in `app/domain/services/common_service.py` to centralize transaction commits.
+  The helper commits the SQLAlchemy session, optionally refreshes an ORM instance, and handles all database
+  exceptions by rolling back and translating them into meaningful `HTTPException` instances.
+- Added a `CONSTRAINT_HINTS` dictionary and improved `_http_exception_from_db_error` to sanitize check
+  constraint error messages and include field/allowed value hints for known constraints.
+- Created `error_handling_implementation.md` documenting the rationale behind the new helper, the
+  sanitization approach, and the steps taken to apply the pattern across services.
+- Added tests in `tests/test_common_service_db_errors.py` covering translation of unique and check
+  constraint violations and verifying that `commit_or_raise` rolls back sessions appropriately.
+
+### Changed
+- Replaced all direct calls to `db.commit()` in `company_service.py`, `contact_service.py`, and
+  `lead_service.py` with calls to `commit_or_raise`, ensuring consistent rollback and error translation.
+- Updated service functions to supply descriptive `action` names to `commit_or_raise` and passed
+  ORM instances to refresh when previously used.
+- Sanitized check constraint violations to remove row data from error responses and added constraint
+  hints where available.
+
+### Tests
+- Added `tests/test_common_service_db_errors.py` verifying the new helper and error translation.
+- Updated service tests to accommodate the new error handling (if necessary) and ensure that unique
+  and check constraint violations return HTTP 409 and HTTP 422, respectively.
+
 ## [2025-12-30] – Postgres-in-Docker Test Harness
 
 ### Added

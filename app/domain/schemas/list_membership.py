@@ -27,7 +27,7 @@ class ListMembershipCreate(ListMembershipBase):
 class ListMembershipRead(ListMembershipBase):
     id: UUID
     created_at: datetime
-    created_by: Optional[UUID] = None
+    created_by: Optional[str] = None
 
     # Configure Pydantic v2 to load from ORM attributes
     model_config = ConfigDict(from_attributes=True)

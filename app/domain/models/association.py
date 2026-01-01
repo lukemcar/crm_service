@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
+from typing import Optional
 
 from sqlalchemy import String, DateTime
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
@@ -50,9 +51,8 @@ class Association(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=datetime.utcnow
     )
-    created_by: Mapped[uuid.UUID | None] = mapped_column(
-        PGUUID(as_uuid=True), nullable=True
-    )
+
+    created_by: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
 
     def __repr__(self) -> str:
         return (

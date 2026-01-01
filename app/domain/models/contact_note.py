@@ -57,8 +57,8 @@ class ContactNote(Base):
         DateTime(timezone=True), nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow
     )
 
-    created_by: Mapped[Optional[uuid.UUID]] = mapped_column(PGUUID(as_uuid=True), nullable=True)
-    updated_by: Mapped[Optional[uuid.UUID]] = mapped_column(PGUUID(as_uuid=True), nullable=True)
+    created_by: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    updated_by: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
 
     # Tenant-safe relationship join (avoids AmbiguousForeignKeysError)
     contact: Mapped["Contact"] = relationship(

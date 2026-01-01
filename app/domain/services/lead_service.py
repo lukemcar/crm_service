@@ -20,6 +20,9 @@ from typing import Any, Dict, Iterable, List, Optional, Tuple
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
+# Import commit_or_raise for robust transaction handling
+from .common_service import commit_or_raise
+
 from app.domain.models import Lead
 from app.messaging.producers import LeadMessageProducer as LeadProducer
 from app.domain.schemas.lead import CreateLead, UpdateLead
@@ -172,8 +175,8 @@ def create_lead(
         updated_by=created_user,
     )
     db.add(lead)
-    db.commit()
-    db.refresh(lead)
+    # Commit and refresh using centralized error handling
+    commit_or_raise(db, refresh=lead, action="create_lead")
     logger.info("Created lead %s for tenant %s", lead.id, tenant_id)
     # Emit event after commit
     snapshot = _lead_snapshot(lead)
@@ -246,8 +249,8 @@ def update_lead(
     lead.updated_by = modified_user
     lead.updated_at = datetime.utcnow()
     db.add(lead)
-    db.commit()
-    db.refresh(lead)
+    # Commit and refresh using centralized error handling
+    commit_or_raise(db, refresh=lead, action="update_lead")
     logger.info("Updated lead %s for tenant %s", lead.id, tenant_id)
     # Determine changes
     changes: Dict[str, Any] = {}
@@ -446,9 +449,10 @@ def patch_lead(
         lead.updated_by = modified_user
         lead.updated_at = datetime.utcnow()
         db.add(lead)
-        db.commit()
-        db.refresh(lead)
+        # Commit and refresh using centralized error handling
+        commit_or_raise(db, refresh=lead, action="patch_lead")
     except HTTPException:
+        # Rollback for validation errors
         db.rollback()
         raise
     except Exception as exc:
@@ -499,7 +503,8 @@ def delete_lead(
     """
     lead = get_lead(db, tenant_id=tenant_id, lead_id=lead_id)
     db.delete(lead)
-    db.commit()
+    # Commit deletion using centralized error handling
+    commit_or_raise(db, action="delete_lead")
     logger.info("Deleted lead %s for tenant %s", lead.id, tenant_id)
     try:
         LeadProducer.send_lead_deleted(

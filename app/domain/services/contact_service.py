@@ -65,6 +65,8 @@ from app.messaging.producers.contact_company_relationship_producer import (
 )
 from app.domain.schemas.json_patch import JsonPatchRequest, JsonPatchOperation
 
+from .common_service import commit_or_raise
+
 logger = logging.getLogger("contact_service")
 
 
@@ -446,8 +448,7 @@ def create_contact(
             updated_by=created_by,
         )
         db.add(note)
-    db.commit()
-    db.refresh(contact)
+    commit_or_raise(db, refresh=contact, action="create_contact")
     logger.info("Created contact %s for tenant %s", contact.id, tenant_id)
     snapshot = _contact_snapshot(contact)
     try:
@@ -474,7 +475,7 @@ def delete_contact(
     """
     contact = get_contact(db, tenant_id=tenant_id, contact_id=contact_id)
     db.delete(contact)
-    db.commit()
+    commit_or_raise(db, action="delete_contact")
     logger.info("Deleted contact %s for tenant %s", contact_id, tenant_id)
     try:
         ContactProducer.send_contact_deleted(
@@ -826,8 +827,7 @@ def patch_contact(
     # Update timestamps and user
     contact.updated_at = datetime.utcnow()
     contact.updated_by = updated_by
-    db.commit()
-    db.refresh(contact)
+    commit_or_raise(db, refresh=contact, action="patch_contact")
     # Compute base changes if not already populated in delta
     base_changes = _compute_base_changes(original_contact, contact)
     if base_changes:
@@ -1007,7 +1007,7 @@ def add_contact_phone(
         updated_by=updated_by,
     )
     db.add(phone)
-    db.commit()
+    commit_or_raise(db, action="add_contact_phone")
     delta = ContactDelta(phones_added=[_phone_snapshot(phone)])
     _emit_contact_update_event(db, contact, tenant_id, delta)
     return phone
@@ -1044,7 +1044,7 @@ def update_contact_phone(
         phone.is_verified = phone_update.is_verified
     phone.updated_at = datetime.utcnow()
     phone.updated_by = updated_by
-    db.commit()
+    commit_or_raise(db, action="update_contact_phone")
     delta = ContactDelta(phones_updated=[_phone_snapshot(phone)])
     _emit_contact_update_event(db, contact, tenant_id, delta)
     return phone
@@ -1066,7 +1066,7 @@ def delete_contact_phone(
     if not phone:
         raise HTTPException(status_code=404, detail="Phone number not found")
     db.delete(phone)
-    db.commit()
+    commit_or_raise(db, action="delete_contact_phone")
     delta = ContactDelta(phones_deleted=[phone_id])
     _emit_contact_update_event(db, contact, tenant_id, delta)
     return None
@@ -1091,7 +1091,7 @@ def add_contact_email(
         updated_by=updated_by,
     )
     db.add(email)
-    db.commit()
+    commit_or_raise(db, action="add_contact_email")
     delta = ContactDelta(emails_added=[_email_snapshot(email)])
     _emit_contact_update_event(db, contact, tenant_id, delta)
     return email
@@ -1123,7 +1123,7 @@ def update_contact_email(
         email.is_verified = email_update.is_verified
     email.updated_at = datetime.utcnow()
     email.updated_by = updated_by
-    db.commit()
+    commit_or_raise(db, action="update_contact_email")
     delta = ContactDelta(emails_updated=[_email_snapshot(email)])
     _emit_contact_update_event(db, contact, tenant_id, delta)
     return email
@@ -1145,7 +1145,7 @@ def delete_contact_email(
     if not email:
         raise HTTPException(status_code=404, detail="Email not found")
     db.delete(email)
-    db.commit()
+    commit_or_raise(db, action="delete_contact_email")
     delta = ContactDelta(emails_deleted=[email_id])
     _emit_contact_update_event(db, contact, tenant_id, delta)
     return None
@@ -1176,7 +1176,7 @@ def add_contact_address(
         updated_by=updated_by,
     )
     db.add(addr)
-    db.commit()
+    commit_or_raise(db, action="add_contact_address")
     delta = ContactDelta(addresses_added=[_address_snapshot(addr)])
     _emit_contact_update_event(db, contact, tenant_id, delta)
     return addr
@@ -1220,7 +1220,7 @@ def update_contact_address(
         addr.country_code = addr_update.country_code
     addr.updated_at = datetime.utcnow()
     addr.updated_by = updated_by
-    db.commit()
+    commit_or_raise(db, action="update_contact_address")
     delta = ContactDelta(addresses_updated=[_address_snapshot(addr)])
     _emit_contact_update_event(db, contact, tenant_id, delta)
     return addr
@@ -1242,7 +1242,7 @@ def delete_contact_address(
     if not addr:
         raise HTTPException(status_code=404, detail="Address not found")
     db.delete(addr)
-    db.commit()
+    commit_or_raise(db, action="delete_contact_address")
     delta = ContactDelta(addresses_deleted=[address_id])
     _emit_contact_update_event(db, contact, tenant_id, delta)
     return None
@@ -1265,7 +1265,7 @@ def add_contact_social_profile(
         updated_by=updated_by,
     )
     db.add(sp)
-    db.commit()
+    commit_or_raise(db, action="add_contact_social_profile")
     delta = ContactDelta(social_profiles_added=[_social_profile_snapshot(sp)])
     _emit_contact_update_event(db, contact, tenant_id, delta)
     return sp
@@ -1297,7 +1297,7 @@ def update_contact_social_profile(
         sp.profile_url = sp_update.profile_url
     sp.updated_at = datetime.utcnow()
     sp.updated_by = updated_by
-    db.commit()
+    commit_or_raise(db, action="update_contact_social_profile")
     delta = ContactDelta(social_profiles_updated=[_social_profile_snapshot(sp)])
     _emit_contact_update_event(db, contact, tenant_id, delta)
     return sp
@@ -1323,7 +1323,7 @@ def delete_contact_social_profile(
     if not sp:
         raise HTTPException(status_code=404, detail="Social profile not found")
     db.delete(sp)
-    db.commit()
+    commit_or_raise(db, action="delete_contact_social_profile")
     delta = ContactDelta(social_profiles_deleted=[social_profile_id])
     _emit_contact_update_event(db, contact, tenant_id, delta)
     return None
@@ -1350,7 +1350,7 @@ def add_contact_note(
         updated_by=updated_by,
     )
     db.add(note)
-    db.commit()
+    commit_or_raise(db, action="add_contact_note")
     delta = ContactDelta(notes_added=[_note_snapshot(note)])
     _emit_contact_update_event(db, contact, tenant_id, delta)
     return note
@@ -1386,7 +1386,7 @@ def update_contact_note(
         note.source_ref = note_update.source_ref
     note.updated_at = datetime.utcnow()
     note.updated_by = updated_by
-    db.commit()
+    commit_or_raise(db, action="update_contact_note")
     delta = ContactDelta(notes_updated=[_note_snapshot(note)])
     _emit_contact_update_event(db, contact, tenant_id, delta)
     return note
@@ -1408,7 +1408,7 @@ def delete_contact_note(
     if not note:
         raise HTTPException(status_code=404, detail="Note not found")
     db.delete(note)
-    db.commit()
+    commit_or_raise(db, action="delete_contact_note")
     delta = ContactDelta(notes_deleted=[note_id])
     _emit_contact_update_event(db, contact, tenant_id, delta)
     return None
@@ -1463,7 +1463,7 @@ def add_contact_company_relationship(
         updated_by=updated_by,
     )
     db.add(rel)
-    db.commit()
+    commit_or_raise(db, action="add_contact_company_relationship")
     payload = _company_relationship_snapshot(rel)
     try:
         RelationshipProducer.send_relationship_created(
@@ -1539,7 +1539,8 @@ def update_contact_company_relationship(
         changes["is_active"] = rel.is_active
     rel.updated_at = datetime.utcnow()
     rel.updated_by = updated_by
-    db.commit()
+    # Use centralized commit with rollback and translation
+    commit_or_raise(db, action="update_contact_company_relationship")
     payload = _company_relationship_snapshot(rel)
     if changes:
         try:
@@ -1580,7 +1581,8 @@ def delete_contact_company_relationship(
     if not rel:
         raise HTTPException(status_code=404, detail="Relationship not found")
     db.delete(rel)
-    db.commit()
+    # Use centralized commit with rollback and translation
+    commit_or_raise(db, action="delete_contact_company_relationship")
     try:
         RelationshipProducer.send_relationship_deleted(
             tenant_id=tenant_id,

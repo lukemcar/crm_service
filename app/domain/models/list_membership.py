@@ -55,10 +55,7 @@ class ListMembership(Base):
         default=datetime.utcnow,
     )
 
-    created_by: Mapped[Optional[uuid.UUID]] = mapped_column(
-        PGUUID(as_uuid=True),
-        nullable=True,
-    )
+    created_by: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
 
     list: Mapped["List"] = relationship(
         "List",

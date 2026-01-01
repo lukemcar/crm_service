@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime, date
+from typing import Optional
 
 from sqlalchemy import String, Text, Date, DateTime
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
@@ -42,8 +43,9 @@ class Activity(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow
     )
-    created_by: Mapped[uuid.UUID | None] = mapped_column(PGUUID(as_uuid=True), nullable=True)
-    updated_by: Mapped[uuid.UUID | None] = mapped_column(PGUUID(as_uuid=True), nullable=True)
+
+    created_by: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    updated_by: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
 
     def __repr__(self) -> str:
         return f"<Activity id={self.id} type={self.type} title={self.title}>"

@@ -21,8 +21,7 @@ import uuid
 from datetime import datetime
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
-from fastapi import HTTPException, status
-from sqlalchemy.exc import DBAPIError, IntegrityError
+from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 # Import the CRM domain models rather than relying on placeholder names.
@@ -67,7 +66,7 @@ from app.messaging.producers.contact_company_relationship_producer import (
 )
 from app.domain.schemas.json_patch import JsonPatchRequest, JsonPatchOperation
 
-from .common_service import _http_exception_from_db_error
+from .common_service import commit_or_raise
 
 logger = logging.getLogger("company_service")
 
@@ -396,19 +395,8 @@ def create_company(
         company.notes.append(note)
 
     db.add(company)
-
-    try:
-        db.commit()
-        db.refresh(company)
-    except IntegrityError as e:
-        db.rollback()
-        raise _http_exception_from_db_error(e) from e
-    except DBAPIError as e:
-        db.rollback()
-        raise _http_exception_from_db_error(e) from e
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail="Unexpected error while creating company") from e
+    # Commit with robust error handling and refresh the company
+    commit_or_raise(db, refresh=company, action="create_company")
 
     # Emit event
     snapshot = _company_snapshot(company)
@@ -420,7 +408,7 @@ def delete_company(db: Session, *, tenant_id: uuid.UUID, company_id: uuid.UUID) 
     """Delete a company."""
     company = get_company(db, tenant_id=tenant_id, company_id=company_id)
     db.delete(company)
-    db.commit()
+    commit_or_raise(db, action="delete_company")
     # Emit deletion event
     CompanyProducer.send_company_deleted(tenant_id=tenant_id)
 
@@ -782,8 +770,7 @@ def patch_company(
     company.updated_at = datetime.utcnow()
     company.updated_by = updated_by
     db.add(company)
-    db.commit()
-    db.refresh(company)
+    commit_or_raise(db, refresh=company, action="patch_company")
     # Emit update event
     snapshot = _company_snapshot(company)
     CompanyProducer.send_company_updated(tenant_id=tenant_id, changes=delta, payload=snapshot)
@@ -866,8 +853,7 @@ def add_company_phone(
     )
     company.phones.append(phone)
     db.add(phone)
-    db.commit()
-    db.refresh(phone)
+    commit_or_raise(db, refresh=phone, action="add_company_phone")
     # Emit update event
     delta = CompanyDelta(phones_added=[_phone_snapshot(phone)])
     CompanyProducer.send_company_updated(
@@ -916,8 +902,7 @@ def update_company_phone(
     phone.updated_at = datetime.utcnow()
     phone.updated_by = updated_by
     db.add(phone)
-    db.commit()
-    db.refresh(phone)
+    commit_or_raise(db, refresh=phone, action="update_company_phone")
     # Emit update delta
     delta = CompanyDelta(phones_updated=[_phone_snapshot(phone)])
     CompanyProducer.send_company_updated(
@@ -941,7 +926,7 @@ def delete_company_phone(
     if phone is None:
         raise HTTPException(status_code=404, detail="Phone not found")
     db.delete(phone)
-    db.commit()
+    commit_or_raise(db, action="delete_company_phone")
     # Emit delta
     delta = CompanyDelta(phones_deleted=[phone.id])
     CompanyProducer.send_company_updated(
@@ -973,8 +958,7 @@ def add_company_email(
     )
     company.emails.append(email)
     db.add(email)
-    db.commit()
-    db.refresh(email)
+    commit_or_raise(db, refresh=email, action="add_company_email")
     delta = CompanyDelta(emails_added=[_email_snapshot(email)])
     CompanyProducer.send_company_updated(
         tenant_id=tenant_id,
@@ -1013,8 +997,7 @@ def update_company_email(
     email.updated_at = datetime.utcnow()
     email.updated_by = updated_by
     db.add(email)
-    db.commit()
-    db.refresh(email)
+    commit_or_raise(db, refresh=email, action="update_company_email")
     delta = CompanyDelta(emails_updated=[_email_snapshot(email)])
     CompanyProducer.send_company_updated(
         tenant_id=tenant_id,
@@ -1037,7 +1020,7 @@ def delete_company_email(
     if email is None:
         raise HTTPException(status_code=404, detail="Email not found")
     db.delete(email)
-    db.commit()
+    commit_or_raise(db, action="delete_company_email")
     delta = CompanyDelta(emails_deleted=[email.id])
     CompanyProducer.send_company_updated(
         tenant_id=tenant_id,
@@ -1074,8 +1057,7 @@ def add_company_address(
     )
     company.addresses.append(addr)
     db.add(addr)
-    db.commit()
-    db.refresh(addr)
+    commit_or_raise(db, refresh=addr, action="add_company_address")
     delta = CompanyDelta(addresses_added=[_address_snapshot(addr)])
     CompanyProducer.send_company_updated(
         tenant_id=tenant_id,
@@ -1121,8 +1103,7 @@ def update_company_address(
     addr.updated_at = datetime.utcnow()
     addr.updated_by = updated_by
     db.add(addr)
-    db.commit()
-    db.refresh(addr)
+    commit_or_raise(db, refresh=addr, action="update_company_address")
     delta = CompanyDelta(addresses_updated=[_address_snapshot(addr)])
     CompanyProducer.send_company_updated(
         tenant_id=tenant_id,
@@ -1145,7 +1126,7 @@ def delete_company_address(
     if addr is None:
         raise HTTPException(status_code=404, detail="Address not found")
     db.delete(addr)
-    db.commit()
+    commit_or_raise(db, action="delete_company_address")
     delta = CompanyDelta(addresses_deleted=[addr.id])
     CompanyProducer.send_company_updated(
         tenant_id=tenant_id,
@@ -1174,8 +1155,7 @@ def add_company_social_profile(
     )
     company.social_profiles.append(profile)
     db.add(profile)
-    db.commit()
-    db.refresh(profile)
+    commit_or_raise(db, refresh=profile, action="add_company_social_profile")
     delta = CompanyDelta(social_profiles_added=[_social_profile_snapshot(profile)])
     CompanyProducer.send_company_updated(
         tenant_id=tenant_id,
@@ -1205,8 +1185,7 @@ def update_company_social_profile(
     profile.updated_at = datetime.utcnow()
     profile.updated_by = updated_by
     db.add(profile)
-    db.commit()
-    db.refresh(profile)
+    commit_or_raise(db, refresh=profile, action="update_company_social_profile")
     delta = CompanyDelta(social_profiles_updated=[_social_profile_snapshot(profile)])
     CompanyProducer.send_company_updated(
         tenant_id=tenant_id,
@@ -1229,7 +1208,7 @@ def delete_company_social_profile(
     if profile is None:
         raise HTTPException(status_code=404, detail="Social profile not found")
     db.delete(profile)
-    db.commit()
+    commit_or_raise(db, action="delete_company_social_profile")
     delta = CompanyDelta(social_profiles_deleted=[profile.id])
     CompanyProducer.send_company_updated(
         tenant_id=tenant_id,
@@ -1262,8 +1241,7 @@ def add_company_note(
     )
     company.notes.append(note)
     db.add(note)
-    db.commit()
-    db.refresh(note)
+    commit_or_raise(db, refresh=note, action="add_company_note")
     delta = CompanyDelta(notes_added=[_note_snapshot(note)])
     CompanyProducer.send_company_updated(
         tenant_id=tenant_id,
@@ -1301,8 +1279,7 @@ def update_company_note(
     note.updated_at = datetime.utcnow()
     note.updated_by = updated_by
     db.add(note)
-    db.commit()
-    db.refresh(note)
+    commit_or_raise(db, refresh=note, action="update_company_note")
     delta = CompanyDelta(notes_updated=[_note_snapshot(note)])
     CompanyProducer.send_company_updated(
         tenant_id=tenant_id,
@@ -1325,7 +1302,7 @@ def delete_company_note(
     if note is None:
         raise HTTPException(status_code=404, detail="Note not found")
     db.delete(note)
-    db.commit()
+    commit_or_raise(db, action="delete_company_note")
     delta = CompanyDelta(notes_deleted=[note.id])
     CompanyProducer.send_company_updated(
         tenant_id=tenant_id,
@@ -1363,8 +1340,7 @@ def add_company_relationship(
         updated_by=updated_by,
     )
     db.add(rel)
-    db.commit()
-    db.refresh(rel)
+    commit_or_raise(db, refresh=rel, action="add_company_relationship")
     # Emit relationship created event
     CompanyRelationshipProducer.send_relationship_created(
         tenant_id=tenant_id,
@@ -1417,8 +1393,7 @@ def update_company_relationship(
     rel.updated_at = datetime.utcnow()
     rel.updated_by = updated_by
     db.add(rel)
-    db.commit()
-    db.refresh(rel)
+    commit_or_raise(db, refresh=rel, action="update_company_relationship")
     CompanyRelationshipProducer.send_relationship_updated(
         tenant_id=tenant_id,
         from_company_id=from_company_id,
@@ -1450,7 +1425,7 @@ def delete_company_relationship(
         raise HTTPException(status_code=404, detail="CompanyRelationship not found")
     to_company_id = rel.to_company_id
     db.delete(rel)
-    db.commit()
+    commit_or_raise(db, action="delete_company_relationship")
     CompanyRelationshipProducer.send_relationship_deleted(
         tenant_id=tenant_id,
         from_company_id=from_company_id,
@@ -1509,8 +1484,7 @@ def add_company_contact(
         updated_by=updated_by,
     )
     db.add(rel)
-    db.commit()
-    db.refresh(rel)
+    commit_or_raise(db, refresh=rel, action="add_company_contact")
     # Emit event via contact company relationship producer
     ContactCompanyRelationshipProducer.send_relationship_created(
         tenant_id=tenant_id,
@@ -1578,8 +1552,7 @@ def update_company_contact(
     rel.updated_at = datetime.utcnow()
     rel.updated_by = updated_by
     db.add(rel)
-    db.commit()
-    db.refresh(rel)
+    commit_or_raise(db, refresh=rel, action="update_company_contact")
     ContactCompanyRelationshipProducer.send_relationship_updated(
         tenant_id=tenant_id,
         contact_id=contact_id,
@@ -1610,7 +1583,7 @@ def delete_company_contact(
     if rel is None:
         raise HTTPException(status_code=404, detail="Contact relationship not found")
     db.delete(rel)
-    db.commit()
+    commit_or_raise(db, action="delete_company_contact")
     ContactCompanyRelationshipProducer.send_relationship_deleted(
         tenant_id=tenant_id,
         contact_id=contact_id,

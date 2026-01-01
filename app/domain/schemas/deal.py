@@ -40,8 +40,8 @@ class DealRead(DealBase):
     tenant_id: UUID
     created_at: datetime
     updated_at: datetime
-    created_by: Optional[UUID] = None
-    updated_by: Optional[UUID] = None
+    created_by: Optional[str] = None
+    updated_by: Optional[str] = None
 
     # Configure Pydantic v2 to load from ORM attributes
     model_config = ConfigDict(from_attributes=True)

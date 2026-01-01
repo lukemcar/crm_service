@@ -90,8 +90,8 @@ class ContactPhoneNumberResponse(BaseModel):
     verified_at: Optional[datetime] = None
     created_at: datetime
     updated_at: datetime
-    created_by: Optional[uuid.UUID] = None
-    updated_by: Optional[uuid.UUID] = None
+    created_by: Optional[str] = None
+    updated_by: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True, extra="ignore")
 
@@ -125,8 +125,8 @@ class ContactEmailResponse(BaseModel):
     verified_at: Optional[datetime] = None
     created_at: datetime
     updated_at: datetime
-    created_by: Optional[uuid.UUID] = None
-    updated_by: Optional[uuid.UUID] = None
+    created_by: Optional[str] = None
+    updated_by: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True, extra="ignore")
 
@@ -177,8 +177,8 @@ class ContactAddressResponse(BaseModel):
     country_code: str
     created_at: datetime
     updated_at: datetime
-    created_by: Optional[uuid.UUID] = None
-    updated_by: Optional[uuid.UUID] = None
+    created_by: Optional[str] = None
+    updated_by: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True, extra="ignore")
 
@@ -205,8 +205,8 @@ class ContactSocialProfileResponse(BaseModel):
     profile_url: str
     created_at: datetime
     updated_at: datetime
-    created_by: Optional[uuid.UUID] = None
-    updated_by: Optional[uuid.UUID] = None
+    created_by: Optional[str] = None
+    updated_by: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True, extra="ignore")
 
@@ -245,8 +245,8 @@ class ContactNoteResponse(BaseModel):
     source_ref: Optional[str] = None
     created_at: datetime
     updated_at: datetime
-    created_by: Optional[uuid.UUID] = None
-    updated_by: Optional[uuid.UUID] = None
+    created_by: Optional[str] = None
+    updated_by: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True, extra="ignore")
 
