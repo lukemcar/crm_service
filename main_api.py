@@ -33,6 +33,47 @@ from app.api.routes import (
     companies_tenant_router,
     companies_admin_nested_router,
     companies_tenant_nested_router,    
+    tenant_users_shadow_router,
+    tenant_groups_shadow_router,
+    inbound_channels_tenant_router,
+    inbound_channels_admin_router,
+    group_profiles_tenant_router,
+    group_profiles_admin_router,
+    tickets_tenant_router,
+    tickets_admin_router,
+    tickets_tenant_nested_router,
+    tickets_admin_nested_router,
+    ticket_forms_tenant_router,
+    ticket_forms_admin_router,
+    ticket_field_defs_tenant_router,
+    ticket_field_defs_admin_router,
+    ticket_form_fields_tenant_router,
+    ticket_form_fields_admin_router,
+    sla_policies_tenant_router,
+    sla_policies_admin_router,
+    sla_targets_tenant_router,
+    sla_targets_admin_router,
+    ticket_sla_state_tenant_router,
+    ticket_sla_state_admin_router,
+    support_views_tenant_router,
+    support_views_admin_router,
+    support_macros_tenant_router,
+    support_macros_admin_router,
+    ticket_task_mirrors_admin_router,
+    ticket_ai_work_refs_admin_router,
+    csat_surveys_tenant_router,
+    csat_surveys_admin_router,
+    # Knowledge base routers
+    kb_categories_tenant_router,
+    kb_categories_admin_router,
+    kb_sections_tenant_router,
+    kb_sections_admin_router,
+    kb_articles_tenant_router,
+    kb_articles_admin_router,
+    kb_article_revisions_tenant_router,
+    kb_article_revisions_admin_router,
+    kb_article_feedback_tenant_router,
+    kb_article_feedback_admin_router,
 )
 
 # Initialise logging and telemetry when the app is created.  Doing
@@ -94,6 +135,60 @@ def create_app() -> FastAPI:
     # Admin and utility routes (health, metrics, tenant projections)
     app.include_router(health_router)
     app.include_router(admin_router)
+    # Support domain tenant projections (read‑only)
+    app.include_router(tenant_users_shadow_router)
+    app.include_router(tenant_groups_shadow_router)
+    # Support domain metadata and channels
+    app.include_router(inbound_channels_tenant_router)
+    app.include_router(inbound_channels_admin_router)
+    # Support domain group profiles
+    app.include_router(group_profiles_tenant_router)
+    app.include_router(group_profiles_admin_router)
+    # Support domain tickets
+    app.include_router(tickets_tenant_router)
+    app.include_router(tickets_admin_router)
+    app.include_router(tickets_tenant_nested_router)
+    app.include_router(tickets_admin_nested_router)
+    # Support domain ticket forms
+    app.include_router(ticket_forms_tenant_router)
+    app.include_router(ticket_forms_admin_router)
+    # Support domain ticket field definitions
+    app.include_router(ticket_field_defs_tenant_router)
+    app.include_router(ticket_field_defs_admin_router)
+    # Support domain ticket form fields
+    app.include_router(ticket_form_fields_tenant_router)
+    app.include_router(ticket_form_fields_admin_router)
+    # Support domain SLA policies and targets
+    app.include_router(sla_policies_tenant_router)
+    app.include_router(sla_policies_admin_router)
+    app.include_router(sla_targets_tenant_router)
+    app.include_router(sla_targets_admin_router)
+    # Support domain ticket SLA state
+    app.include_router(ticket_sla_state_tenant_router)
+    app.include_router(ticket_sla_state_admin_router)
+    # Support domain views and macros
+    app.include_router(support_views_tenant_router)
+    app.include_router(support_views_admin_router)
+    app.include_router(support_macros_tenant_router)
+    app.include_router(support_macros_admin_router)
+    # Support domain task mirrors and AI work refs (admin)
+    app.include_router(ticket_task_mirrors_admin_router)
+    app.include_router(ticket_ai_work_refs_admin_router)
+    # Support domain CSAT surveys
+    app.include_router(csat_surveys_tenant_router)
+    app.include_router(csat_surveys_admin_router)
+
+    # Knowledge base routers
+    app.include_router(kb_categories_tenant_router)
+    app.include_router(kb_categories_admin_router)
+    app.include_router(kb_sections_tenant_router)
+    app.include_router(kb_sections_admin_router)
+    app.include_router(kb_articles_tenant_router)
+    app.include_router(kb_articles_admin_router)
+    app.include_router(kb_article_revisions_tenant_router)
+    app.include_router(kb_article_revisions_admin_router)
+    app.include_router(kb_article_feedback_tenant_router)
+    app.include_router(kb_article_feedback_admin_router)
 
     # Instrument the FastAPI application for tracing.  This will
     # automatically create spans for incoming requests.  If

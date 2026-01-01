@@ -47,6 +47,8 @@ try:
         list as list_model,  # list is a Python built‑in; alias to avoid clash
         list_membership,
         association,
+        tenant_user_shadow,
+        tenant_group_shadow,
     )  # noqa: F401
 except Exception:
     # Models may not exist yet during bootstrap.  Ignore import errors.
