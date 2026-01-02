@@ -13,7 +13,7 @@ from __future__ import annotations
 from typing import List, Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Header, status
+from fastapi import APIRouter, Depends, Header, status, Query
 from sqlalchemy.orm import Session
 
 from app.core.db import get_db
@@ -69,7 +69,7 @@ def create_group_profile_endpoint(
     tenant_id: UUID,
     profile_in: TenantCreateGroupProfile,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> GroupProfileOut:
     """Create a new group profile for a tenant.
 
@@ -93,7 +93,7 @@ def update_group_profile_endpoint(
     profile_id: UUID,
     profile_update: GroupProfileUpdate,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> GroupProfileOut:
     """Update an existing group profile.
 
@@ -133,7 +133,7 @@ def delete_group_profile_endpoint(
     tenant_id: UUID,
     profile_id: UUID,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> None:
     """Delete a group profile from a tenant.
 

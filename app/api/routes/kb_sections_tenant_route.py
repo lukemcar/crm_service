@@ -56,7 +56,7 @@ def create_kb_section_tenant_endpoint(
     section_in: TenantCreateKbSection,
     tenant_id: UUID = Path(..., description="Tenant ID"),
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> KbSectionOut:
     """Create a knowledge base section within a tenant."""
     created_user = x_user or "anonymous"
@@ -90,7 +90,7 @@ def update_kb_section_tenant_endpoint(
     tenant_id: UUID = Path(..., description="Tenant ID"),
     section_id: UUID = Path(..., description="Section ID"),
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> KbSectionOut:
     """Update a knowledge base section within a tenant."""
     updated_user = x_user or "anonymous"
@@ -109,7 +109,7 @@ def delete_kb_section_tenant_endpoint(
     tenant_id: UUID = Path(..., description="Tenant ID"),
     section_id: UUID = Path(..., description="Section ID"),
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> None:
     """Delete a knowledge base section within a tenant."""
     kb_section_service.delete_kb_section(

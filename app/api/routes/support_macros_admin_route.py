@@ -78,7 +78,7 @@ def create_support_macro_admin(
     *,
     macro_in: AdminCreateSupportMacro,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> SupportMacroOut:
     """Create a new support macro on behalf of a tenant.
 
@@ -106,7 +106,7 @@ def update_support_macro_admin(
     ),
     macro_update: SupportMacroUpdate,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> SupportMacroOut:
     """Apply updates to a support macro as an admin.
 
@@ -154,7 +154,7 @@ def delete_support_macro_admin(
         ..., description="Tenant ID of the support macro to delete"
     ),
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> None:
     """Delete a support macro as an admin.
 

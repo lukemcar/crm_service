@@ -57,7 +57,7 @@ def list_kb_articles_admin_endpoint(
 def create_kb_article_admin_endpoint(
     article_in: AdminCreateKbArticle,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> KbArticleOut:
     """Create a knowledge base article via the admin API specifying the tenant."""
     created_user = x_user or "anonymous"
@@ -95,7 +95,7 @@ def update_kb_article_admin_endpoint(
         ..., description="Tenant ID of the article to scope the update"
     ),
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> KbArticleOut:
     """Update a knowledge base article via the admin API."""
     updated_user = x_user or "anonymous"
@@ -116,7 +116,7 @@ def delete_kb_article_admin_endpoint(
         ..., description="Tenant ID of the article to scope the deletion"
     ),
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> None:
     """Delete a knowledge base article via the admin API."""
     kb_article_service.delete_kb_article(

@@ -71,7 +71,7 @@ def create_lead_admin(
     tenant_id: UUID = Query(..., description="Tenant ID for the new lead"),
     lead_in: CreateLead,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ):
     """Create a new lead for the specified tenant.
 
@@ -95,7 +95,7 @@ def update_lead_admin(
     lead_id: UUID,
     lead_in: UpdateLead,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ):
     """Replace an existing lead for the given tenant.
 
@@ -120,7 +120,7 @@ def patch_lead_admin(
     lead_id: UUID,
     patch_request: JsonPatchRequest,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ):
     """Apply a JSON Patch document to a lead for the given tenant.
 

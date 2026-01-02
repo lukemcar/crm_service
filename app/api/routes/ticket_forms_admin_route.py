@@ -79,7 +79,7 @@ def create_ticket_form_admin(
     *,
     form_in: AdminCreateTicketForm,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> TicketFormOut:
     """Create a new ticket form on behalf of a tenant.
 
@@ -107,7 +107,7 @@ def update_ticket_form_admin(
     ),
     form_update: TicketFormUpdate,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> TicketFormOut:
     """Apply updates to a ticket form as an admin.
 
@@ -155,7 +155,7 @@ def delete_ticket_form_admin(
         ..., description="Tenant ID of the ticket form to delete"
     ),
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> None:
     """Delete a ticket form as an admin.
 

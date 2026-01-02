@@ -80,7 +80,7 @@ def create_ticket_form_field_admin_endpoint(
     *,
     form_field_in: AdminCreateTicketFormField,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> TicketFormFieldOut:
     """Create a new ticket form field via the admin API.
 
@@ -108,7 +108,7 @@ def update_ticket_form_field_admin_endpoint(
         ..., description="Tenant ID of the ticket form field to update"
     ),
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> TicketFormFieldOut:
     """Update an existing ticket form field via the admin API.
 
@@ -154,7 +154,7 @@ def delete_ticket_form_field_admin_endpoint(
         ..., description="Tenant ID of the ticket form field to delete"
     ),
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> None:
     """Delete a ticket form field via the admin API.
 

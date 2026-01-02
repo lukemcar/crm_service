@@ -48,7 +48,7 @@ def create_kb_category_tenant_endpoint(
     tenant_id: UUID,
     category_in: TenantCreateKbCategory,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> KbCategoryOut:
     """Create a knowledge base category within a tenant."""
     created_user = x_user or "anonymous"
@@ -80,7 +80,7 @@ def update_kb_category_tenant_endpoint(
     category_id: UUID,
     category_update: KbCategoryUpdate,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> KbCategoryOut:
     """Update a knowledge base category within a tenant."""
     updated_user = x_user or "anonymous"
@@ -99,7 +99,7 @@ def delete_kb_category_tenant_endpoint(
     tenant_id: UUID,
     category_id: UUID,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> None:
     """Delete a knowledge base category within a tenant."""
     kb_category_service.delete_kb_category(

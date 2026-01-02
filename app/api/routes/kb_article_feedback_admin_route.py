@@ -56,7 +56,7 @@ def list_kb_article_feedback_admin_endpoint(
 def create_kb_article_feedback_admin_endpoint(
     feedback_in: AdminCreateKbArticleFeedback,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> KbArticleFeedbackOut:
     """Create an article feedback entry via the admin API specifying the tenant."""
     created_user = x_user or "anonymous"
@@ -93,7 +93,7 @@ def delete_kb_article_feedback_admin_endpoint(
         ..., description="Tenant ID of the feedback to scope the deletion"
     ),
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> None:
     """Delete an article feedback entry via the admin API."""
     kb_article_feedback_service.delete_kb_article_feedback(

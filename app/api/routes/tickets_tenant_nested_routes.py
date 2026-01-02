@@ -27,7 +27,7 @@ from __future__ import annotations
 from typing import List, Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Header, status, HTTPException
+from fastapi import APIRouter, Depends, Header, status, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from app.core.db import get_db
@@ -137,7 +137,7 @@ def create_ticket_participant_endpoint(
     ticket_id: UUID,
     participant_in: TenantCreateTicketParticipant,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> TicketParticipantOut:
     """Add a participant to a ticket."""
     created_by = x_user or "anonymous"
@@ -160,7 +160,7 @@ def delete_ticket_participant_endpoint(
     ticket_id: UUID,
     participant_id: UUID,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> None:
     """Remove a participant from a ticket."""
     ticket_participant_service.delete_ticket_participant(
@@ -200,7 +200,7 @@ def create_ticket_tag_endpoint(
     ticket_id: UUID,
     tag_in: TenantCreateTicketTag,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> TicketTagOut:
     """Add a tag to a ticket."""
     created_by = x_user or "anonymous"
@@ -223,7 +223,7 @@ def delete_ticket_tag_endpoint(
     ticket_id: UUID,
     tag_id: UUID,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> None:
     """Remove a tag from a ticket."""
     ticket_tag_service.delete_ticket_tag(
@@ -271,7 +271,7 @@ def create_ticket_message_endpoint(
     ticket_id: UUID,
     message_in: TenantCreateTicketMessage,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> TicketMessageOut:
     """Add a message to a ticket."""
     created_by = x_user or "anonymous"
@@ -319,7 +319,7 @@ def create_ticket_attachment_endpoint(
     ticket_id: UUID,
     attachment_in: TenantCreateTicketAttachment,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> TicketAttachmentOut:
     """Add an attachment to a ticket."""
     created_by = x_user or "anonymous"
@@ -342,7 +342,7 @@ def delete_ticket_attachment_endpoint(
     ticket_id: UUID,
     attachment_id: UUID,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> None:
     """Remove an attachment from a ticket."""
     ticket_attachment_service.delete_ticket_attachment(
@@ -384,7 +384,7 @@ def create_ticket_assignment_endpoint(
     ticket_id: UUID,
     assignment_in: TenantCreateTicketAssignment,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> TicketAssignmentOut:
     """Create a ticket assignment within a tenant."""
     created_by = x_user or "anonymous"
@@ -463,7 +463,7 @@ def create_ticket_field_value_endpoint(
     ticket_id: UUID,
     value_in: TenantCreateTicketFieldValue,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> TicketFieldValueOut:
     """Add a custom field value to a ticket.
 
@@ -512,7 +512,7 @@ def update_ticket_field_value_endpoint(
     value_id: UUID,
     value_update: TicketFieldValueUpdate,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> TicketFieldValueOut:
     """Update an existing custom field value on a ticket.
 
@@ -692,7 +692,7 @@ def create_ticket_time_entry_endpoint(
     ticket_id: UUID,
     time_entry_in: TenantCreateTicketTimeEntry,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> TicketTimeEntryOut:
     """Add a time entry to a ticket.
 
@@ -745,7 +745,7 @@ def update_ticket_time_entry_endpoint(
     entry_id: UUID,
     time_entry_update: TicketTimeEntryUpdate,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> TicketTimeEntryOut:
     """Update an existing time entry on a ticket.
 
@@ -778,7 +778,7 @@ def delete_ticket_time_entry_endpoint(
     ticket_id: UUID,
     entry_id: UUID,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> None:
     """Remove a time entry from a ticket."""
     # Validate existence and ticket match inside service
@@ -833,7 +833,7 @@ def create_csat_response_endpoint(
     ticket_id: UUID,
     response_in: TenantCreateCsatResponse,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> CsatResponseOut:
     """Submit a new CSAT response for a ticket.
 
@@ -1004,7 +1004,7 @@ def delete_ticket_field_value_endpoint(
     ticket_id: UUID,
     value_id: UUID,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> None:
     """Remove a custom field value from a ticket."""
     ticket_field_value_service.delete_ticket_field_value(

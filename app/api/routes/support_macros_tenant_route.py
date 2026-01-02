@@ -13,7 +13,7 @@ from __future__ import annotations
 from typing import List, Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Header, status
+from fastapi import APIRouter, Depends, Header, status, Query
 from sqlalchemy.orm import Session
 
 from app.core.db import get_db
@@ -67,7 +67,7 @@ def create_support_macro_endpoint(
     tenant_id: UUID,
     macro_in: TenantCreateSupportMacro,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> SupportMacroOut:
     """Create a new support macro for a tenant.
 
@@ -91,7 +91,7 @@ def update_support_macro_endpoint(
     macro_id: UUID,
     macro_update: SupportMacroUpdate,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> SupportMacroOut:
     """Update an existing support macro.
 
@@ -131,7 +131,7 @@ def delete_support_macro_endpoint(
     tenant_id: UUID,
     macro_id: UUID,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> None:
     """Delete a support macro from a tenant.
 

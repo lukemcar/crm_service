@@ -56,7 +56,7 @@ def list_kb_article_revisions_admin_endpoint(
 def create_kb_article_revision_admin_endpoint(
     revision_in: AdminCreateKbArticleRevision,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> KbArticleRevisionOut:
     """Create an article revision via the admin API specifying the tenant."""
     created_user = x_user or "anonymous"
@@ -93,7 +93,7 @@ def delete_kb_article_revision_admin_endpoint(
         ..., description="Tenant ID of the revision to scope the deletion"
     ),
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> None:
     """Delete an article revision via the admin API."""
     kb_article_revision_service.delete_kb_article_revision(

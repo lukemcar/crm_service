@@ -55,7 +55,7 @@ def create_csat_survey_endpoint(
     tenant_id: UUID,
     survey_in: TenantCreateCsatSurvey,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> CsatSurveyOut:
     """Create a new CSAT survey for a tenant."""
     created_user = x_user or "anonymous"
@@ -89,7 +89,7 @@ def update_csat_survey_endpoint(
     survey_id: UUID,
     survey_update: CsatSurveyUpdate,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> CsatSurveyOut:
     """Update a CSAT survey for a tenant."""
     updated_user = x_user or "anonymous"
@@ -108,7 +108,7 @@ def delete_csat_survey_endpoint(
     tenant_id: UUID,
     survey_id: UUID,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> None:
     """Delete a CSAT survey for a tenant."""
     csat_survey_service.delete_csat_survey(

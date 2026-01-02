@@ -87,7 +87,7 @@ def upsert_ticket_task_mirror_admin(
     mirror_id: UUID,
     request: AdminUpsertTicketTaskMirror,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> TicketTaskMirrorOut:
     """Upsert a ticket task mirror record as an admin.
 
@@ -137,7 +137,7 @@ def delete_ticket_task_mirror_admin(
         ..., description="Tenant ID of the task mirror to delete"
     ),
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> None:
     """Delete a ticket task mirror as an admin."""
     service_delete_task_mirror(

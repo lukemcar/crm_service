@@ -12,7 +12,7 @@ from __future__ import annotations
 from typing import List, Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Header, status
+from fastapi import APIRouter, Depends, Header, status, Query
 from sqlalchemy.orm import Session
 
 from app.core.db import get_db
@@ -66,7 +66,7 @@ def create_support_view_endpoint(
     tenant_id: UUID,
     view_in: TenantCreateSupportView,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> SupportViewOut:
     """Create a new support view for a tenant.
 
@@ -90,7 +90,7 @@ def update_support_view_endpoint(
     view_id: UUID,
     view_update: SupportViewUpdate,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> SupportViewOut:
     """Update an existing support view.
 
@@ -130,7 +130,7 @@ def delete_support_view_endpoint(
     tenant_id: UUID,
     view_id: UUID,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> None:
     """Delete a support view from a tenant.
 

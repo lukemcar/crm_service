@@ -54,7 +54,7 @@ def list_kb_categories_admin_endpoint(
 def create_kb_category_admin_endpoint(
     category_in: AdminCreateKbCategory,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> KbCategoryOut:
     """Create a knowledge base category via the admin API specifying the tenant."""
     created_user = x_user or "anonymous"
@@ -92,7 +92,7 @@ def update_kb_category_admin_endpoint(
         ..., description="Tenant ID of the category to scope the update"
     ),
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> KbCategoryOut:
     """Update a knowledge base category via the admin API."""
     updated_user = x_user or "anonymous"
@@ -113,7 +113,7 @@ def delete_kb_category_admin_endpoint(
         ..., description="Tenant ID of the category to scope the deletion"
     ),
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> None:
     """Delete a knowledge base category via the admin API."""
     kb_category_service.delete_kb_category(

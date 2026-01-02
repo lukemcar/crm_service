@@ -11,7 +11,7 @@ from __future__ import annotations
 from typing import List
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Header, Path, status
+from fastapi import APIRouter, Depends, Header, Path, status, Query
 from sqlalchemy.orm import Session
 
 from app.core.db import get_db
@@ -49,7 +49,7 @@ def create_kb_article_revision_tenant_endpoint(
     tenant_id: UUID = Path(..., description="Tenant ID"),
     article_id: UUID = Path(..., description="Article ID"),
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> KbArticleRevisionOut:
     """Create a revision for an article within a tenant."""
     created_user = x_user or "anonymous"

@@ -102,7 +102,7 @@ def add_phone_admin(
     ),
     phone_in: CompanyPhoneNumberCreateRequest,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> CompanyPhoneNumberResponse:
     phone = add_company_phone(
         db,
@@ -124,7 +124,7 @@ def update_phone_admin(
     ),
     phone_update: CompanyPhoneNumberUpdateRequest,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> CompanyPhoneNumberResponse:
     phone = update_company_phone(
         db,
@@ -146,7 +146,7 @@ def delete_phone_admin(
         ..., description="Tenant ID of the company whose phone number to delete"
     ),
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> None:
     delete_company_phone(
         db,
@@ -189,7 +189,7 @@ def add_email_admin(
     ),
     email_in: CompanyEmailCreateRequest,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> CompanyEmailResponse:
     email = add_company_email(
         db,
@@ -211,7 +211,7 @@ def update_email_admin(
     ),
     email_update: CompanyEmailUpdateRequest,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> CompanyEmailResponse:
     email = update_company_email(
         db,
@@ -233,7 +233,7 @@ def delete_email_admin(
         ..., description="Tenant ID of the company whose email to delete"
     ),
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> None:
     delete_company_email(
         db,
@@ -276,7 +276,7 @@ def add_address_admin(
     ),
     address_in: CompanyAddressCreateRequest,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> CompanyAddressResponse:
     address = add_company_address(
         db,
@@ -298,7 +298,7 @@ def update_address_admin(
     ),
     address_update: CompanyAddressUpdateRequest,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> CompanyAddressResponse:
     address = update_company_address(
         db,
@@ -320,7 +320,7 @@ def delete_address_admin(
         ..., description="Tenant ID of the company whose address to delete"
     ),
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> None:
     delete_company_address(
         db,
@@ -363,7 +363,7 @@ def add_social_profile_admin(
     ),
     profile_in: CompanySocialProfileCreateRequest,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> CompanySocialProfileResponse:
     profile = add_company_social_profile(
         db,
@@ -385,7 +385,7 @@ def update_social_profile_admin(
     ),
     profile_update: CompanySocialProfileUpdateRequest,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> CompanySocialProfileResponse:
     profile = update_company_social_profile(
         db,
@@ -407,7 +407,7 @@ def delete_social_profile_admin(
         ..., description="Tenant ID of the company whose social profile to delete"
     ),
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> None:
     delete_company_social_profile(
         db,
@@ -450,7 +450,7 @@ def add_note_admin(
     ),
     note_in: CompanyNoteCreateRequest,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> CompanyNoteResponse:
     note = add_company_note(
         db,
@@ -472,7 +472,7 @@ def update_note_admin(
     ),
     note_update: CompanyNoteUpdateRequest,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> CompanyNoteResponse:
     note = update_company_note(
         db,
@@ -494,7 +494,7 @@ def delete_note_admin(
         ..., description="Tenant ID of the company whose note to delete"
     ),
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> None:
     delete_company_note(
         db,
@@ -537,7 +537,7 @@ def add_relationship_admin(
     ),
     rel_in: CompanyRelationshipCreateRequest,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> CompanyRelationshipResponse:
     rel = add_company_relationship(
         db,
@@ -559,7 +559,7 @@ def update_relationship_admin(
     ),
     rel_update: CompanyRelationshipUpdateRequest,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> CompanyRelationshipResponse:
     rel = update_company_relationship(
         db,
@@ -581,7 +581,7 @@ def delete_relationship_admin(
         ..., description="Tenant ID of the company whose relationship to delete"
     ),
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> None:
     delete_company_relationship(
         db,

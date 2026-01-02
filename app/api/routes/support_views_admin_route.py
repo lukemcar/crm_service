@@ -78,7 +78,7 @@ def create_support_view_admin(
     *,
     view_in: AdminCreateSupportView,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> SupportViewOut:
     """Create a new support view on behalf of a tenant.
 
@@ -106,7 +106,7 @@ def update_support_view_admin(
     ),
     view_update: SupportViewUpdate,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> SupportViewOut:
     """Apply updates to a support view as an admin.
 
@@ -154,7 +154,7 @@ def delete_support_view_admin(
         ..., description="Tenant ID of the support view to delete"
     ),
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> None:
     """Delete a support view as an admin.
 

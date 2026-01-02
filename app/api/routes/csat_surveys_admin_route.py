@@ -56,7 +56,7 @@ def list_csat_surveys_admin_endpoint(
 def create_csat_survey_admin_endpoint(
     survey_in: AdminCreateCsatSurvey,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> CsatSurveyOut:
     """Create a CSAT survey via the admin API specifying the tenant."""
     created_user = x_user or "anonymous"
@@ -94,7 +94,7 @@ def update_csat_survey_admin_endpoint(
         ..., description="Tenant ID of the survey to scope the update"
     ),
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> CsatSurveyOut:
     """Update a CSAT survey via the admin API."""
     updated_user = x_user or "anonymous"
@@ -115,7 +115,7 @@ def delete_csat_survey_admin_endpoint(
         ..., description="Tenant ID of the survey to scope the deletion"
     ),
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> None:
     """Delete a CSAT survey via the admin API."""
     csat_survey_service.delete_csat_survey(

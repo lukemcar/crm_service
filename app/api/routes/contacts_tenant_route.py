@@ -67,7 +67,7 @@ def create_contact_endpoint(
     tenant_id: UUID,
     contact_in: TenantCreateContact,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ):
     """Create a new contact for the tenant."""
     created_user = x_user or "anonymous"
@@ -97,7 +97,7 @@ def patch_contact_endpoint(
     contact_id: UUID,
     patch_request: JsonPatchRequest,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ):
     """Apply JSON Patch to a contact."""
     updated_user = x_user or "anonymous"

@@ -13,7 +13,7 @@ from __future__ import annotations
 from typing import List, Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Header, HTTPException, status
+from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
 from app.domain.services.company_service import (
@@ -100,7 +100,7 @@ def add_phone(
     company_id: UUID,
     phone_in: CompanyPhoneNumberCreateRequest,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> CompanyPhoneNumberResponse:
     phone = add_company_phone(
         db,
@@ -119,7 +119,7 @@ def update_phone(
     phone_id: UUID,
     phone_update: CompanyPhoneNumberUpdateRequest,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> CompanyPhoneNumberResponse:
     phone = update_company_phone(
         db,
@@ -138,7 +138,7 @@ def delete_phone(
     company_id: UUID,
     phone_id: UUID,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> None:
     delete_company_phone(
         db,
@@ -171,7 +171,7 @@ def add_email(
     company_id: UUID,
     email_in: CompanyEmailCreateRequest,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> CompanyEmailResponse:
     email = add_company_email(
         db,
@@ -190,7 +190,7 @@ def update_email(
     email_id: UUID,
     email_update: CompanyEmailUpdateRequest,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> CompanyEmailResponse:
     email = update_company_email(
         db,
@@ -209,7 +209,7 @@ def delete_email(
     company_id: UUID,
     email_id: UUID,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> None:
     delete_company_email(
         db,
@@ -242,7 +242,7 @@ def add_address(
     company_id: UUID,
     address_in: CompanyAddressCreateRequest,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> CompanyAddressResponse:
     address = add_company_address(
         db,
@@ -261,7 +261,7 @@ def update_address(
     address_id: UUID,
     address_update: CompanyAddressUpdateRequest,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> CompanyAddressResponse:
     address = update_company_address(
         db,
@@ -280,7 +280,7 @@ def delete_address(
     company_id: UUID,
     address_id: UUID,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> None:
     delete_company_address(
         db,
@@ -313,7 +313,7 @@ def add_social_profile(
     company_id: UUID,
     profile_in: CompanySocialProfileCreateRequest,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> CompanySocialProfileResponse:
     profile = add_company_social_profile(
         db,
@@ -332,7 +332,7 @@ def update_social_profile(
     social_profile_id: UUID,
     profile_update: CompanySocialProfileUpdateRequest,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> CompanySocialProfileResponse:
     profile = update_company_social_profile(
         db,
@@ -351,7 +351,7 @@ def delete_social_profile(
     company_id: UUID,
     social_profile_id: UUID,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> None:
     delete_company_social_profile(
         db,
@@ -384,7 +384,7 @@ def add_note(
     company_id: UUID,
     note_in: CompanyNoteCreateRequest,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> CompanyNoteResponse:
     note = add_company_note(
         db,
@@ -403,7 +403,7 @@ def update_note(
     note_id: UUID,
     note_update: CompanyNoteUpdateRequest,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> CompanyNoteResponse:
     note = update_company_note(
         db,
@@ -422,7 +422,7 @@ def delete_note(
     company_id: UUID,
     note_id: UUID,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> None:
     delete_company_note(
         db,
@@ -455,7 +455,7 @@ def add_relationship(
     company_id: UUID,
     rel_in: CompanyRelationshipCreateRequest,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> CompanyRelationshipResponse:
     rel = add_company_relationship(
         db,
@@ -474,7 +474,7 @@ def update_relationship(
     relationship_id: UUID,
     rel_update: CompanyRelationshipUpdateRequest,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> CompanyRelationshipResponse:
     rel = update_company_relationship(
         db,
@@ -493,7 +493,7 @@ def delete_relationship(
     company_id: UUID,
     relationship_id: UUID,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> None:
     delete_company_relationship(
         db,
@@ -526,7 +526,7 @@ def add_contact(
     company_id: UUID,
     request: CompanyContactRelationshipCreateRequest,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> CompanyContactRelationshipResponse:
     rel = add_company_contact(
         db,
@@ -545,7 +545,7 @@ def update_contact(
     contact_id: UUID,
     request: CompanyContactRelationshipUpdateRequest,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> CompanyContactRelationshipResponse:
     rel = update_company_contact(
         db,
@@ -564,7 +564,7 @@ def delete_contact(
     company_id: UUID,
     contact_id: UUID,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> None:
     delete_company_contact(
         db,

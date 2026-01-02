@@ -98,7 +98,7 @@ def add_phone_admin(
     tenant_id: UUID = Query(..., description="Tenant ID of the contact to add a phone number to"),
     phone_in: ContactPhoneNumberCreateRequest,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> ContactPhoneNumberResponse:
     phone = add_contact_phone(
         db,
@@ -118,7 +118,7 @@ def update_phone_admin(
     tenant_id: UUID = Query(..., description="Tenant ID of the contact whose phone number to update"),
     phone_update: ContactPhoneNumberUpdateRequest,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> ContactPhoneNumberResponse:
     phone = update_contact_phone(
         db,
@@ -138,7 +138,7 @@ def delete_phone_admin(
     *,
     tenant_id: UUID = Query(..., description="Tenant ID of the contact whose phone number to delete"),
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> None:
     delete_contact_phone(
         db,
@@ -178,7 +178,7 @@ def add_email_admin(
     tenant_id: UUID = Query(..., description="Tenant ID of the contact to add an email to"),
     email_in: ContactEmailCreateRequest,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> ContactEmailResponse:
     email = add_contact_email(
         db,
@@ -198,7 +198,7 @@ def update_email_admin(
     tenant_id: UUID = Query(..., description="Tenant ID of the contact whose email to update"),
     email_update: ContactEmailUpdateRequest,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> ContactEmailResponse:
     email = update_contact_email(
         db,
@@ -218,7 +218,7 @@ def delete_email_admin(
     *,
     tenant_id: UUID = Query(..., description="Tenant ID of the contact whose email to delete"),
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> None:
     delete_contact_email(
         db,
@@ -256,7 +256,7 @@ def add_address_admin(
     tenant_id: UUID = Query(..., description="Tenant ID of the contact to add an address to"),
     address_in: ContactAddressCreateRequest,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> ContactAddressResponse:
     address = add_contact_address(
         db,
@@ -276,7 +276,7 @@ def update_address_admin(
     tenant_id: UUID = Query(..., description="Tenant ID of the contact whose address to update"),
     address_update: ContactAddressUpdateRequest,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> ContactAddressResponse:
     address = update_contact_address(
         db,
@@ -296,7 +296,7 @@ def delete_address_admin(
     *,
     tenant_id: UUID = Query(..., description="Tenant ID of the contact whose address to delete"),
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> None:
     delete_contact_address(
         db,
@@ -334,7 +334,7 @@ def add_social_profile_admin(
     tenant_id: UUID = Query(..., description="Tenant ID of the contact to add a social profile to"),
     sp_in: ContactSocialProfileCreateRequest,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> ContactSocialProfileResponse:
     sp = add_contact_social_profile(
         db,
@@ -354,7 +354,7 @@ def update_social_profile_admin(
     tenant_id: UUID = Query(..., description="Tenant ID of the contact whose social profile to update"),
     sp_update: ContactSocialProfileUpdateRequest,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> ContactSocialProfileResponse:
     sp = update_contact_social_profile(
         db,
@@ -374,7 +374,7 @@ def delete_social_profile_admin(
     *,
     tenant_id: UUID = Query(..., description="Tenant ID of the contact whose social profile to delete"),
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> None:
     delete_contact_social_profile(
         db,
@@ -412,7 +412,7 @@ def add_note_admin(
     tenant_id: UUID = Query(..., description="Tenant ID of the contact to add a note to"),
     note_in: ContactNoteCreateRequest,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> ContactNoteResponse:
     note = add_contact_note(
         db,
@@ -432,7 +432,7 @@ def update_note_admin(
     tenant_id: UUID = Query(..., description="Tenant ID of the contact whose note to update"),
     note_update: ContactNoteUpdateRequest,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> ContactNoteResponse:
     note = update_contact_note(
         db,
@@ -452,7 +452,7 @@ def delete_note_admin(
     *,
     tenant_id: UUID = Query(..., description="Tenant ID of the contact whose note to delete"),
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> None:
     delete_contact_note(
         db,
@@ -490,7 +490,7 @@ def add_company_relationship_admin(
     tenant_id: UUID = Query(..., description="Tenant ID of the contact to add a company relationship to"),
     rel_in: ContactCompanyRelationshipCreateRequest,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> ContactCompanyRelationshipResponse:
     rel = add_contact_company_relationship(
         db,
@@ -510,7 +510,7 @@ def update_company_relationship_admin(
     tenant_id: UUID = Query(..., description="Tenant ID of the contact whose company relationship to update"),
     rel_update: ContactCompanyRelationshipUpdateRequest,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> ContactCompanyRelationshipResponse:
     rel = update_contact_company_relationship(
         db,
@@ -530,7 +530,7 @@ def delete_company_relationship_admin(
     *,
     tenant_id: UUID = Query(..., description="Tenant ID of the contact whose company relationship to delete"),
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> None:
     delete_contact_company_relationship(
         db,

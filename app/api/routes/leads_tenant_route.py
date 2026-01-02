@@ -14,7 +14,7 @@ from __future__ import annotations
 from typing import List, Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Header, status
+from fastapi import APIRouter, Depends, Header, status, Query
 from sqlalchemy.orm import Session
 
 import app.domain.services.lead_service as lead_service
@@ -68,7 +68,7 @@ def create_lead_endpoint(
     tenant_id: UUID,
     lead_in: CreateLead,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ):
     """Create a new lead for a tenant.
 
@@ -92,7 +92,7 @@ def update_lead_endpoint(
     lead_id: UUID,
     lead_in: UpdateLead,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ):
     """Replace an existing lead.
 
@@ -116,7 +116,7 @@ def patch_lead_endpoint(
     lead_id: UUID,
     patch_request: JsonPatchRequest,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ):
     """Apply a JSON Patch document to a lead.
 

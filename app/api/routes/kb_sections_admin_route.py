@@ -57,7 +57,7 @@ def list_kb_sections_admin_endpoint(
 def create_kb_section_admin_endpoint(
     section_in: AdminCreateKbSection,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> KbSectionOut:
     """Create a knowledge base section via the admin API specifying the tenant."""
     created_user = x_user or "anonymous"
@@ -95,7 +95,7 @@ def update_kb_section_admin_endpoint(
         ..., description="Tenant ID of the section to scope the update"
     ),
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> KbSectionOut:
     """Update a knowledge base section via the admin API."""
     updated_user = x_user or "anonymous"
@@ -116,7 +116,7 @@ def delete_kb_section_admin_endpoint(
         ..., description="Tenant ID of the section to scope the deletion"
     ),
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> None:
     """Delete a knowledge base section via the admin API."""
     kb_section_service.delete_kb_section(

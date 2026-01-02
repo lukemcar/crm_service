@@ -84,7 +84,7 @@ def create_ticket_admin(
     *,
     ticket_in: AdminCreateTicket,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> TicketOut:
     """Create a new ticket on behalf of a tenant.
 
@@ -112,7 +112,7 @@ def update_ticket_admin(
     ),
     ticket_update: TicketUpdate,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> TicketOut:
     """Apply updates to a ticket as an admin.
 
@@ -160,7 +160,7 @@ def delete_ticket_admin(
         ..., description="Tenant ID of the ticket to delete"
     ),
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> None:
     """Delete a ticket as an admin.
 

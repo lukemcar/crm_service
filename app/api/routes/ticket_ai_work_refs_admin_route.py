@@ -82,7 +82,7 @@ def upsert_ticket_ai_work_ref_admin(
     ref_id: UUID,
     request: AdminUpsertTicketAiWorkRef,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> TicketAiWorkRefOut:
     """Upsert a ticket AI work reference record as an admin.
 
@@ -130,7 +130,7 @@ def delete_ticket_ai_work_ref_admin(
         ..., description="Tenant ID of the AI work reference to delete"
     ),
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> None:
     """Delete a ticket AI work reference as an admin."""
     service_delete_ai_work_ref(

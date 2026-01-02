@@ -81,7 +81,7 @@ def create_inbound_channel_admin(
     *,
     channel_in: AdminCreateInboundChannel,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> InboundChannelOut:
     """Create a new inbound channel on behalf of a tenant.
 
@@ -109,7 +109,7 @@ def update_inbound_channel_admin(
     ),
     channel_update: InboundChannelUpdate,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> InboundChannelOut:
     """Apply updates to an inbound channel as an admin.
 
@@ -157,7 +157,7 @@ def delete_inbound_channel_admin(
         ..., description="Tenant ID of the inbound channel to delete"
     ),
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> None:
     """Delete an inbound channel as an admin.
 

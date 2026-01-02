@@ -13,7 +13,7 @@ from __future__ import annotations
 from typing import List, Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Header, status
+from fastapi import APIRouter, Depends, Header, status, Query
 from sqlalchemy.orm import Session
 
 from app.core.db import get_db
@@ -75,7 +75,7 @@ def create_ticket_field_def_endpoint(
     tenant_id: UUID,
     field_def_in: TenantCreateTicketFieldDef,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> TicketFieldDefOut:
     """Create a new ticket field definition for a tenant.
 
@@ -99,7 +99,7 @@ def update_ticket_field_def_endpoint(
     field_def_id: UUID,
     field_def_update: TicketFieldDefUpdate,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> TicketFieldDefOut:
     """Update an existing ticket field definition.
 
@@ -139,7 +139,7 @@ def delete_ticket_field_def_endpoint(
     tenant_id: UUID,
     field_def_id: UUID,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> None:
     """Delete a ticket field definition from a tenant.
 

@@ -13,7 +13,7 @@ from __future__ import annotations
 from typing import List, Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Header, status
+from fastapi import APIRouter, Depends, Header, status, Query
 from sqlalchemy.orm import Session
 
 from app.core.db import get_db
@@ -70,7 +70,7 @@ def create_inbound_channel_endpoint(
     tenant_id: UUID,
     channel_in: TenantCreateInboundChannel,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> InboundChannelOut:
     """Create a new inbound channel for a tenant.
 
@@ -94,7 +94,7 @@ def update_inbound_channel_endpoint(
     channel_id: UUID,
     channel_update: InboundChannelUpdate,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> InboundChannelOut:
     """Update an existing inbound channel.
 
@@ -134,7 +134,7 @@ def delete_inbound_channel_endpoint(
     tenant_id: UUID,
     channel_id: UUID,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> None:
     """Delete an inbound channel from a tenant.
 

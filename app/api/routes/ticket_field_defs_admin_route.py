@@ -82,7 +82,7 @@ def create_ticket_field_def_admin(
     *,
     field_def_in: AdminCreateTicketFieldDef,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> TicketFieldDefOut:
     """Create a new ticket field definition on behalf of a tenant.
 
@@ -110,7 +110,7 @@ def update_ticket_field_def_admin(
     ),
     field_def_update: TicketFieldDefUpdate,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> TicketFieldDefOut:
     """Apply updates to a ticket field definition as an admin.
 
@@ -158,7 +158,7 @@ def delete_ticket_field_def_admin(
         ..., description="Tenant ID of the ticket field definition to delete"
     ),
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> None:
     """Delete a ticket field definition as an admin.
 

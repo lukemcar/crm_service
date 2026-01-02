@@ -12,7 +12,7 @@ from __future__ import annotations
 from typing import List, Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Header, status
+from fastapi import APIRouter, Depends, Header, status, Query
 from sqlalchemy.orm import Session
 
 from app.core.db import get_db
@@ -70,7 +70,7 @@ def create_ticket_endpoint(
     tenant_id: UUID,
     ticket_in: TenantCreateTicket,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> TicketOut:
     """Create a new ticket for a tenant.
 
@@ -94,7 +94,7 @@ def update_ticket_endpoint(
     ticket_id: UUID,
     ticket_update: TicketUpdate,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> TicketOut:
     """Update an existing ticket.
 
@@ -132,7 +132,7 @@ def delete_ticket_endpoint(
     tenant_id: UUID,
     ticket_id: UUID,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> None:
     """Delete a ticket from a tenant.
 

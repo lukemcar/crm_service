@@ -83,7 +83,7 @@ def create_company_admin(
     *,
     company_in: AdminCreateCompany,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> CompanyOut:
     """Create a new company on behalf of a tenant.
 
@@ -111,7 +111,7 @@ def patch_company_admin(
     ),
     patch_request: JsonPatchRequest,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> CompanyOut:
     """Apply a JSON Patch document to a company as an admin.
 
@@ -158,7 +158,7 @@ def delete_company_admin(
         ..., description="Tenant ID of the company to delete"
     ),
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> None:
     """Delete a company as an admin.
 

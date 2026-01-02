@@ -12,7 +12,7 @@ from __future__ import annotations
 from typing import List, Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Header, status
+from fastapi import APIRouter, Depends, Header, status, Query
 from sqlalchemy.orm import Session
 
 from app.core.db import get_db
@@ -72,7 +72,7 @@ def create_ticket_form_endpoint(
     tenant_id: UUID,
     form_in: TenantCreateTicketForm,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> TicketFormOut:
     """Create a new ticket form for a tenant.
 
@@ -96,7 +96,7 @@ def update_ticket_form_endpoint(
     form_id: UUID,
     form_update: TicketFormUpdate,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> TicketFormOut:
     """Update an existing ticket form.
 
@@ -136,7 +136,7 @@ def delete_ticket_form_endpoint(
     tenant_id: UUID,
     form_id: UUID,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> None:
     """Delete a ticket form from a tenant.
 

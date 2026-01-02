@@ -79,7 +79,7 @@ def create_sla_policy_admin(
     *,
     policy_in: AdminCreateSlaPolicy,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> SlaPolicyOut:
     """Create a new SLA policy on behalf of a tenant.
 
@@ -107,7 +107,7 @@ def update_sla_policy_admin(
     ),
     policy_update: SlaPolicyUpdate,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> SlaPolicyOut:
     """Apply updates to an SLA policy as an admin.
 
@@ -153,7 +153,7 @@ def delete_sla_policy_admin(
         ..., description="Tenant ID of the SLA policy to delete"
     ),
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> None:
     """Delete an SLA policy as an admin.
 

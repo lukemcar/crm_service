@@ -132,7 +132,7 @@ def create_ticket_participant_admin_endpoint(
     ticket_id: UUID,
     participant_in: AdminCreateTicketParticipant,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> TicketParticipantOut:
     """Add a participant to a ticket via the admin API."""
     created_by = x_user or "anonymous"
@@ -158,7 +158,7 @@ def delete_ticket_participant_admin_endpoint(
         ..., description="Tenant ID of the ticket participant to delete"
     ),
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> None:
     """Remove a participant from a ticket via the admin API."""
     ticket_participant_service.delete_ticket_participant(
@@ -201,7 +201,7 @@ def create_ticket_tag_admin_endpoint(
     ticket_id: UUID,
     tag_in: AdminCreateTicketTag,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> TicketTagOut:
     """Add a tag to a ticket via the admin API."""
     created_by = x_user or "anonymous"
@@ -227,7 +227,7 @@ def delete_ticket_tag_admin_endpoint(
         ..., description="Tenant ID of the ticket tag to delete"
     ),
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> None:
     """Remove a tag from a ticket via the admin API."""
     ticket_tag_service.delete_ticket_tag(
@@ -278,7 +278,7 @@ def create_ticket_message_admin_endpoint(
     ticket_id: UUID,
     message_in: AdminCreateTicketMessage,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> TicketMessageOut:
     """Add a message to a ticket via the admin API."""
     created_by = x_user or "anonymous"
@@ -329,7 +329,7 @@ def create_ticket_attachment_admin_endpoint(
     ticket_id: UUID,
     attachment_in: AdminCreateTicketAttachment,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> TicketAttachmentOut:
     """Add an attachment to a ticket via the admin API."""
     created_by = x_user or "anonymous"
@@ -355,7 +355,7 @@ def delete_ticket_attachment_admin_endpoint(
         ..., description="Tenant ID of the ticket attachment to delete"
     ),
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> None:
     """Remove an attachment from a ticket via the admin API."""
     ticket_attachment_service.delete_ticket_attachment(
@@ -400,7 +400,7 @@ def create_ticket_assignment_admin_endpoint(
     ticket_id: UUID,
     assignment_in: AdminCreateTicketAssignment,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> TicketAssignmentOut:
     """Create a ticket assignment via the admin API."""
     created_by = x_user or "anonymous"
@@ -485,7 +485,7 @@ def create_ticket_field_value_admin_endpoint(
     ticket_id: UUID,
     value_in: AdminCreateTicketFieldValue,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> TicketFieldValueOut:
     """Add a custom field value to a ticket via the admin API.
 
@@ -541,7 +541,7 @@ def update_ticket_field_value_admin_endpoint(
         ..., description="Tenant ID of the ticket to scope the update"
     ),
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> TicketFieldValueOut:
     """Update an existing custom field value via the admin API."""
     updated_user = x_user or "anonymous"
@@ -568,7 +568,7 @@ def delete_ticket_field_value_admin_endpoint(
         ..., description="Tenant ID of the ticket to scope the deletion"
     ),
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> None:
     """Remove a custom field value from a ticket via the admin API."""
     ticket_field_value_service.delete_ticket_field_value(
@@ -747,7 +747,7 @@ def create_ticket_time_entry_admin_endpoint(
     ticket_id: UUID,
     time_entry_in: AdminCreateTicketTimeEntry,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> TicketTimeEntryOut:
     """Add a time entry to a ticket via the admin API.
 
@@ -812,7 +812,7 @@ def update_ticket_time_entry_admin_endpoint(
         ..., description="Tenant ID of the ticket to scope the update"
     ),
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> TicketTimeEntryOut:
     """Update an existing time entry via the admin API."""
     updated_user = x_user or "anonymous"
@@ -843,7 +843,7 @@ def delete_ticket_time_entry_admin_endpoint(
         ..., description="Tenant ID of the ticket to scope the deletion"
     ),
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> None:
     """Remove a time entry via the admin API."""
     ticket_time_entry_service.delete_ticket_time_entry(
@@ -899,7 +899,7 @@ def create_csat_response_admin_endpoint(
     ticket_id: UUID,
     response_in: AdminCreateCsatResponse,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> CsatResponseOut:
     """Submit a new CSAT response via the admin API.
 
@@ -964,7 +964,7 @@ def update_csat_response_admin_endpoint(
         ..., description="Tenant ID of the ticket to scope the update"
     ),
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> CsatResponseOut:
     """Update an existing CSAT response via the admin API."""
     updated_user = x_user or "anonymous"
@@ -995,7 +995,7 @@ def delete_csat_response_admin_endpoint(
         ..., description="Tenant ID of the ticket to scope the deletion"
     ),
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> None:
     """Remove a CSAT response via the admin API."""
     csat_response_service.delete_csat_response(
@@ -1046,7 +1046,7 @@ def create_ticket_metrics_admin_endpoint(
     ticket_id: UUID,
     metrics_in: AdminCreateTicketMetrics,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> TicketMetricsOut:
     """Create a ticket metrics record via the admin API.
 
@@ -1109,7 +1109,7 @@ def update_ticket_metrics_admin_endpoint(
         ..., description="Tenant ID of the ticket to scope the update"
     ),
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> TicketMetricsOut:
     """Update an existing ticket metrics record via the admin API."""
     updated_user = x_user or "anonymous"
@@ -1140,7 +1140,7 @@ def delete_ticket_metrics_admin_endpoint(
         ..., description="Tenant ID of the ticket to scope the deletion"
     ),
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> None:
     """Remove a ticket metrics record via the admin API."""
     ticket_metrics_service.delete_ticket_metrics(
@@ -1193,7 +1193,7 @@ def create_ticket_status_duration_admin_endpoint(
     ticket_id: UUID,
     duration_in: AdminCreateTicketStatusDuration,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> TicketStatusDurationOut:
     """Create a ticket status duration record via the admin API."""
     created_user = x_user or "anonymous"
@@ -1250,7 +1250,7 @@ def update_ticket_status_duration_admin_endpoint(
         ..., description="Tenant ID of the ticket to scope the update"
     ),
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> TicketStatusDurationOut:
     """Update an existing ticket status duration record via the admin API."""
     updated_user = x_user or "anonymous"
@@ -1281,7 +1281,7 @@ def delete_ticket_status_duration_admin_endpoint(
         ..., description="Tenant ID of the ticket to scope the deletion"
     ),
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> None:
     """Remove a ticket status duration record via the admin API."""
     ticket_status_duration_service.delete_ticket_status_duration(

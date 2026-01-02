@@ -12,7 +12,7 @@ from __future__ import annotations
 from typing import List, Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Header, status
+from fastapi import APIRouter, Depends, Header, status, Query
 from sqlalchemy.orm import Session
 
 from app.core.db import get_db
@@ -72,7 +72,7 @@ def create_sla_policy_endpoint(
     tenant_id: UUID,
     policy_in: TenantCreateSlaPolicy,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> SlaPolicyOut:
     """Create a new SLA policy for a tenant.
 
@@ -96,7 +96,7 @@ def update_sla_policy_endpoint(
     policy_id: UUID,
     policy_update: SlaPolicyUpdate,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> SlaPolicyOut:
     """Update an existing SLA policy.
 
@@ -134,7 +134,7 @@ def delete_sla_policy_endpoint(
     tenant_id: UUID,
     policy_id: UUID,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> None:
     """Delete an SLA policy from a tenant.
 

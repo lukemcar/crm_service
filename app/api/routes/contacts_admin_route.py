@@ -77,7 +77,7 @@ def create_contact_admin(
     *,
     contact_in: AdminCreateContact,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> ContactOut:
     """Create a new contact for the specified tenant.
 
@@ -120,7 +120,7 @@ def patch_contact_admin(
     tenant_id: UUID = Query(..., description="Tenant ID of the contact to patch"),
     patch_request: JsonPatchRequest,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> ContactOut:
     """Apply a JSON Patch document to a contact.
 

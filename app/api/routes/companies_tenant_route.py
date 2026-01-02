@@ -14,7 +14,7 @@ from __future__ import annotations
 from typing import List, Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Header, status
+from fastapi import APIRouter, Depends, status, Query
 from sqlalchemy.orm import Session
 
 from app.domain.services import company_service  # for mypy namespace package support
@@ -74,7 +74,7 @@ def create_company_endpoint(
     tenant_id: UUID,
     company_in: TenantCreateCompany,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> CompanyOut:
     """Create a new company for a tenant.
 
@@ -98,7 +98,7 @@ def patch_company_endpoint(
     company_id: UUID,
     patch_request: JsonPatchRequest,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> CompanyOut:
     """Apply a JSON Patch document to a company.
 
@@ -138,7 +138,7 @@ def delete_company_endpoint(
     tenant_id: UUID,
     company_id: UUID,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> None:
     """Delete a company from a tenant.
 

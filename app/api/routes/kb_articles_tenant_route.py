@@ -56,7 +56,7 @@ def create_kb_article_tenant_endpoint(
     article_in: TenantCreateKbArticle,
     tenant_id: UUID = Path(..., description="Tenant ID"),
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> KbArticleOut:
     """Create a knowledge base article within a tenant."""
     created_user = x_user or "anonymous"
@@ -90,7 +90,7 @@ def update_kb_article_tenant_endpoint(
     tenant_id: UUID = Path(..., description="Tenant ID"),
     article_id: UUID = Path(..., description="Article ID"),
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> KbArticleOut:
     """Update a knowledge base article within a tenant."""
     updated_user = x_user or "anonymous"
@@ -109,7 +109,7 @@ def delete_kb_article_tenant_endpoint(
     tenant_id: UUID = Path(..., description="Tenant ID"),
     article_id: UUID = Path(..., description="Article ID"),
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> None:
     """Delete a knowledge base article within a tenant."""
     kb_article_service.delete_kb_article(

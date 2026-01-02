@@ -81,7 +81,7 @@ def create_group_profile_admin(
     *,
     profile_in: AdminCreateGroupProfile,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> GroupProfileOut:
     """Create a new group profile on behalf of a tenant.
 
@@ -109,7 +109,7 @@ def update_group_profile_admin(
     ),
     profile_update: GroupProfileUpdate,
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> GroupProfileOut:
     """Apply updates to a group profile as an admin.
 
@@ -157,7 +157,7 @@ def delete_group_profile_admin(
         ..., description="Tenant ID of the group profile to delete"
     ),
     db: Session = Depends(get_db),
-    x_user: Optional[str] = Header(None, alias="X-User"),
+    x_user: str | None = Query(default=None),
 ) -> None:
     """Delete a group profile as an admin.
 
