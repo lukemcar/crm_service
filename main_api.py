@@ -13,13 +13,21 @@ from fastapi import FastAPI
 from app.core.config import Config
 
 from app.api.routes import (
-    pipeline_router,
-    pipeline_stage_router,
-    deal_router,
-    activity_router,
-    list_router,
-    list_membership_router,
-    association_router,
+    pipelines_admin_router,
+    pipelines_tenant_router,
+    pipeline_stages_admin_router,
+    pipeline_stages_tenant_router,
+    deals_admin_router,
+    deals_tenant_router,
+    activities_admin_router,
+    activities_tenant_router,
+    lists_admin_router,
+    lists_tenant_router,
+    # List membership routers are split into admin and tenant modules
+    list_memberships_admin_router,
+    list_memberships_tenant_router,
+    associations_admin_router,
+    associations_tenant_router,
     health_router,
     admin_router,
     
@@ -125,13 +133,27 @@ def create_app() -> FastAPI:
     app.include_router(companies_tenant_router)
     app.include_router(companies_admin_nested_router)
     app.include_router(companies_tenant_nested_router)
-    app.include_router(pipeline_router)
-    app.include_router(pipeline_stage_router)
-    app.include_router(deal_router)
-    app.include_router(activity_router)
-    app.include_router(list_router)
-    app.include_router(list_membership_router)
-    app.include_router(association_router)
+    # Include pipeline routers (admin and tenant) instead of the legacy pipeline router
+    app.include_router(pipelines_admin_router)
+    app.include_router(pipelines_tenant_router)
+    # Include pipeline stage routers (admin and tenant) instead of the legacy pipeline_stage router
+    app.include_router(pipeline_stages_admin_router)
+    app.include_router(pipeline_stages_tenant_router)
+    # Include new deal routers (admin and tenant) instead of the legacy deal router
+    app.include_router(deals_admin_router)
+    app.include_router(deals_tenant_router)
+    # Replace the legacy activity router with separate admin and tenant routers
+    app.include_router(activities_admin_router)
+    app.include_router(activities_tenant_router)
+    # Include list routers (admin and tenant).  The legacy list router is no longer used.
+    app.include_router(lists_admin_router)
+    app.include_router(lists_tenant_router)
+    # Include new list membership routers (admin and tenant)
+    app.include_router(list_memberships_admin_router)
+    app.include_router(list_memberships_tenant_router)
+    # Replace the legacy association router with separate admin and tenant routers
+    app.include_router(associations_admin_router)
+    app.include_router(associations_tenant_router)
     # Admin and utility routes (health, metrics, tenant projections)
     app.include_router(health_router)
     app.include_router(admin_router)

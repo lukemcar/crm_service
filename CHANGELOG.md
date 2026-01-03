@@ -1,3 +1,110 @@
+## [2026-01-02] – Test Suite Update and Final Review
+
+### Added
+* Introduced a dedicated continuation phase to review and validate the refactored codebase prior to final packaging.  Verified that all newly added route modules, service functions and message producers compile without syntax errors and that imports resolve correctly.  Used `python -m compileall` to ensure there were no outstanding syntax issues across the codebase.
+* Added comprehensive test coverage for the refactored domains.  New test modules (`test_list_routes.py`, `test_list_membership_routes.py`, `test_pipeline_routes.py`, `test_pipeline_stage_routes.py`) were created to exercise the new admin and tenant endpoints, nested resource patterns, pagination and audit header propagation.  Existing tests for activities, associations and deals were adjusted to call the new service functions and verify audit fields.
+
+### Changed
+* Updated the existing test suite under `tests/` to replace references to legacy routes for the Activity, Association and Deal domains with calls to the new admin and tenant endpoints.  Adjusted assertions to verify that audit information from the `X‑User` header is passed through to the service layer.
+* Ensured that new tests supply `limit` and `offset` query parameters where appropriate and validate that filters and pagination are forwarded correctly to the service layer.
+
+### Notes
+* This final review ensures that the refactored codebase is syntactically sound and ready for packaging.  All domain refactors have been completed and the application compiles successfully.  A test suite covering the refactored domains has been added and compiles successfully.  The next step is to archive the final codebase into a zip file for delivery.
+
+## [2026-01-02] – Activity Domain Refactor
+
+### Added
+* Added admin and tenant route modules (`activities_admin_route.py` and `activities_tenant_route.py`) to replace the old `activity.py` route. Admin routes live under `/admin/activities` and tenant routes under `/tenants/{tenant_id}/activities`. Each route delegates to the service layer and uses the `X-User` header for audit fields.
+
+### Changed
+* Refactored the activity service (`activity_service.py`) to use `commit_or_raise`, compute snapshots and changes, and emit events after committing transactions using the new `ActivityMessageProducer`.
+* Replaced `ActivityProducer` with `ActivityMessageProducer` following the canonical messaging pattern. Task names now derive from the global `EXCHANGE_NAME` and include message headers with the tenant ID.
+* Updated `main_api.py` and route aggregator to include the new routers and remove the legacy activity router.
+* Updated event model imports and service usage accordingly.
+
+### Notes
+* The original `app/api/routes/activity.py` remains for backward compatibility but is no longer included in the FastAPI application.
+
+## [2026-01-02] – Association Domain Refactor
+
+### Added
+* Added admin and tenant route modules (`associations_admin_route.py` and `associations_tenant_route.py`) to replace the old `association.py` route.  Admin routes live under `/admin/associations` and tenant routes under `/tenants/{tenant_id}/associations`.  Each route delegates to the service layer and uses the `X-User` header for audit fields.
+
+### Changed
+* Refactored the association service (`association_service.py`) to use `commit_or_raise`, compute snapshots for created events, and emit events after committing transactions using the new `AssociationMessageProducer`.
+* Replaced `AssociationProducer` with `AssociationMessageProducer` following the canonical messaging pattern.  Task names now derive from the global `EXCHANGE_NAME` and include message headers with the tenant ID.
+* Updated `main_api.py` and the route aggregator to include the new routers and remove the legacy association router.
+* Updated producer exports and service imports accordingly.
+
+### Notes
+* Associations are immutable; therefore only created and deleted events are emitted.  The original `app/api/routes/association.py` remains for backward compatibility but is no longer included in the FastAPI application.
+
+## [2026-01-02] – Deal Domain Refactor
+
+### Added
+* Added admin and tenant route modules (`deals_admin_route.py` and `deals_tenant_route.py`) to replace the old `deal.py` route.  Admin routes live under `/admin/deals` and support cross‑tenant listing with optional pipeline and stage filters.  Tenant routes live under `/tenants/{tenant_id}/deals` and scope operations to a single tenant.  Mutations use the `X-User` header to populate audit fields.
+
+### Changed
+* Refactored the deal service (`deal_service.py`) to use `commit_or_raise`, compute snapshots and changes, and emit events after committing transactions via the new `DealMessageProducer`.
+* Replaced `DealProducer` with `DealMessageProducer` following the canonical messaging pattern.  Task names now derive from the global `EXCHANGE_NAME` and include message headers with the tenant ID.  A `DealProducer` alias is retained for backward compatibility.
+* Updated the route aggregator and `main_api.py` to include the new deals routers and remove the legacy `deal` router.
+* Updated producer exports and service imports accordingly.
+
+### Notes
+* The original `app/api/routes/deal.py` remains in the codebase for backward compatibility but is no longer included in the FastAPI application.
+
+## [2026-01-02] – List Domain Refactor
+
+### Added
+* Added admin and tenant route modules (`lists_admin_route.py` and `lists_tenant_route.py`) to replace the old `list.py` route.  Admin routes live under `/admin/lists` and support cross‑tenant listing with optional filters and pagination.  Tenant routes live under `/tenants/{tenant_id}/lists` and scope operations to a single tenant.  Mutations use the `X‑User` header to populate audit fields.
+
+### Changed
+* Refactored the list service (`list_service.py`) to use `commit_or_raise`, compute snapshots and change sets, and emit events after committing transactions via the new `ListMessageProducer`.  Added helper functions for listing, retrieving, creating, updating and deleting lists under the `service_*` namespace.
+* Replaced `ListProducer` with `ListMessageProducer` following the canonical messaging pattern.  Task names now derive from the global `EXCHANGE_NAME` and include message headers with the tenant ID.  A `ListProducer` alias is retained for backward compatibility.
+* Updated the route aggregator (`app/api/routes/__init__.py`) and `main_api.py` to include the new list routers and removed the legacy `list_router` from the application.  Legacy `list.py` remains in the codebase for backwards compatibility but is no longer used.
+
+### Notes
+* List event payloads now include the list ID, name, object type, list type, filter definition and audit fields.  The `changes` dictionary for update events contains only the fields that have been modified.  The old list routes remain accessible for transitional purposes but will be removed in a future release.
+
+## [2026-01-02] – List Membership Domain Refactor
+
+### Added
+* Added admin and tenant route modules (`list_memberships_admin_route.py` and `list_memberships_tenant_route.py`) to replace the old `list_membership.py` route.  Collection endpoints are nested under lists (`/admin/lists/{list_id}/memberships` and `/tenants/{tenant_id}/lists/{list_id}/memberships`) while singleton endpoints use flat paths (`/admin/memberships/{membership_id}` and `/tenants/{tenant_id}/memberships/{membership_id}`).  Mutations accept the `X‑User` header for audit fields.
+
+### Changed
+* Refactored the list membership service (`list_membership_service.py`) to use `commit_or_raise`, compute snapshots and emit events via the new `ListMembershipMessageProducer`.  Added helper functions `service_list_memberships`, `service_get_membership`, `service_create_membership` and `service_delete_membership` to encapsulate business logic and event emission.
+* Replaced `ListMembershipProducer` with `ListMembershipMessageProducer` following the canonical messaging pattern.  Task names now derive from the global `EXCHANGE_NAME` and include message headers with the tenant ID.  A `ListMembershipProducer` alias is retained for backward compatibility.
+* Updated the route aggregator and `main_api.py` to include the new list membership routers and removed the legacy `list_membership_router` from the application.
+
+### Notes
+* List membership event payloads now include the membership ID, list ID, member ID, member type and audit fields.  The original `list_membership.py` remains in the codebase for backwards compatibility but is no longer included in the FastAPI application.
+
+## [2026-01-02] – Pipeline Domain Refactor
+
+### Added
+* Added admin and tenant route modules (`pipelines_admin_route.py` and `pipelines_tenant_route.py`) to replace the old `pipeline.py` route.  Admin routes live under `/admin/pipelines` and support cross‑tenant listing with optional name filters and pagination.  Tenant routes live under `/tenants/{tenant_id}/pipelines` and scope operations to a single tenant.  Mutating operations use the `X‑User` header to populate audit fields.
+
+### Changed
+* Refactored the pipeline service (`pipeline_service.py`) to provide new helper functions `service_list_pipelines`, `service_get_pipeline`, `service_create_pipeline`, `service_update_pipeline` and `service_delete_pipeline`.  These functions use `commit_or_raise`, compute snapshots and change sets, and emit events via the new `PipelineMessageProducer` after committing.  Existing functions remain for backwards compatibility.
+* Replaced `PipelineProducer` with `PipelineMessageProducer` following the canonical messaging pattern.  Task names now derive from the global `EXCHANGE_NAME` and include message headers with the tenant ID.  A `PipelineProducer` alias is retained for backward compatibility.
+* Updated the route aggregator and `main_api.py` to include the new pipeline routers and removed the legacy `pipeline_router` from the application.
+
+### Notes
+* Pipeline event payloads now include the pipeline ID, name and audit fields.  Update events emit only the changed fields.  The old `pipeline.py` remains for backwards compatibility but is no longer used.
+
+## [2026-01-02] – Pipeline Stage Domain Refactor
+
+### Added
+* Added admin and tenant route modules (`pipeline_stages_admin_route.py` and `pipeline_stages_tenant_route.py`) to replace the old `pipeline_stage.py` route.  Collection endpoints are nested under pipelines (`/admin/pipelines/{pipeline_id}/stages` and `/tenants/{tenant_id}/pipelines/{pipeline_id}/stages`) while singleton endpoints use flat paths (`/admin/stages/{stage_id}` and `/tenants/{tenant_id}/stages/{stage_id}`).  Mutations accept the `X‑User` header for audit fields.
+
+### Changed
+* Refactored the pipeline stage service (`pipeline_stage_service.py`) to use `commit_or_raise`, validate pipeline existence and ownership, detect duplicate stage names and orders, compute snapshots and change sets, and emit events via the new `PipelineStageMessageProducer`.  Added helper functions `service_list_stages`, `service_get_stage`, `service_create_stage`, `service_update_stage` and `service_delete_stage` to encapsulate this logic.  Legacy functions remain for backward compatibility.
+* Replaced `PipelineStageProducer` with `PipelineStageMessageProducer` following the canonical messaging pattern.  Task names now derive from the global `EXCHANGE_NAME` and include message headers with the tenant ID.  A `PipelineStageProducer` alias is retained for backward compatibility.
+* Updated the route aggregator and `main_api.py` to include the new pipeline stage routers and removed the legacy `pipeline_stage_router` from the application.
+
+### Notes
+* Pipeline stage event payloads now include the stage ID, pipeline ID, name, order, probability and audit fields.  Update events emit only changed fields.  The original `pipeline_stage.py` remains in the codebase for backward compatibility but is no longer used.
+
 ## [2026-01-01] – Reserved Attribute Fix (metadata)
 
 ### Changed

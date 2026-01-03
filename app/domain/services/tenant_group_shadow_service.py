@@ -18,6 +18,9 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.domain.models.tenant_group_shadow import TenantGroupShadow
+from app.domain.schemas.tenant_group_shadow import CreateTenantGroupShadow
+
+from app.domain.services.common_service import commit_or_raise
 
 logger = logging.getLogger("tenant_group_shadow_service")
 
@@ -87,6 +90,40 @@ def get_tenant_group(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Tenant group projection not found",
         )
+    return instance
+
+
+    
+def create_tenant_group_shadow(
+    db: Session,
+    *,
+    group_in: CreateTenantGroupShadow,
+) -> TenantGroupShadow:
+    """Create a tenant group shadow projection.
+
+    This function is provided for completeness, but in practice
+    tenant group shadows are created and managed by the tenant
+    service via asynchronous events.
+    """
+    logger.debug(
+        "Creating tenant group shadow: tenant_id=%s, group_name=%s",
+        group_in.tenant_id,
+        group_in.group_name,
+    )
+    instance = TenantGroupShadow(
+        tenant_id=group_in.tenant_id,
+        group_name=group_in.group_name,
+        group_key=group_in.group_key,
+        description=group_in.description,
+        is_active=group_in.is_active,
+    )
+    db.add(instance)
+    commit_or_raise(db, refresh=instance, action="Created tenant group shadow")
+    logger.info(
+        "Created tenant group shadow: tenant_id=%s, group_id=%s",
+        instance.tenant_id,
+        instance.id,
+    )
     return instance
 
 

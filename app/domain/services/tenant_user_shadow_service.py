@@ -24,6 +24,9 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.domain.models.tenant_user_shadow import TenantUserShadow
+from app.domain.schemas.tenant_user_shadow import CreateTenantUserShadow
+
+from app.domain.services.common_service import commit_or_raise
 
 logger = logging.getLogger("tenant_user_shadow_service")
 
@@ -119,6 +122,37 @@ def get_tenant_user(
             detail="Tenant user projection not found",
         )
     return instance
+
+
+def create_tenant_user_shadow(
+    db: Session, *, user_in: CreateTenantUserShadow
+) -> TenantUserShadow:
+    """Create a new tenant user shadow projection.
+
+    This function is intended for use by event handlers that
+    synchronize tenant user data from the tenant management service.
+    """
+    logger.debug(
+        "Creating tenant user shadow: tenant_id=%s, user_id=%s",
+        user_in.tenant_id,
+        user_in.user_id,
+    )
+    instance = TenantUserShadow(
+        tenant_id=user_in.tenant_id,
+        user_id=user_in.user_id,
+        display_name=user_in.display_name,
+        email=user_in.email,
+        created_at=user_in.created_at,
+        updated_at=user_in.updated_at,
+    )
+    db.add(instance)
+    commit_or_raise(db, refresh=instance, action="Created tenant user shadow")
+    logger.info(
+        "Created tenant user shadow: tenant_id=%s, user_id=%s",
+        instance.tenant_id,
+        instance.user_id,
+    )
+    return instance 
 
 
 __all__ = [

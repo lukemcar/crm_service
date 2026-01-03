@@ -823,3 +823,108 @@ CREATE UNIQUE INDEX IF NOT EXISTS ux_contact_company_relationship_primary_per_co
 
 CREATE UNIQUE INDEX IF NOT EXISTS ux_contact_company_relationship_unique
     ON dyno_crm.contact_company_relationship(tenant_id, contact_id, company_id, relationship_type);
+
+
+-- ----------------------------------------------------------------------
+-- dyno_crm.deal (depends on dyno_crm.pipeline + dyno_crm.pipeline_stage)
+-- ----------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS dyno_crm.deal (
+    id UUID PRIMARY KEY,
+    tenant_id UUID NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    amount NUMERIC(12,2),
+    expected_close_date DATE,
+    pipeline_id UUID NOT NULL,
+    stage_id UUID NOT NULL,
+    probability NUMERIC(5,2),
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    created_by VARCHAR(100),
+    updated_by VARCHAR(100),
+    CONSTRAINT fk_deals_pipeline
+        FOREIGN KEY (pipeline_id) REFERENCES dyno_crm.pipeline(id) ON DELETE CASCADE,
+    CONSTRAINT fk_deals_stage
+        FOREIGN KEY (stage_id) REFERENCES dyno_crm.pipeline_stage(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS ix_deals_tenant ON dyno_crm.deal(tenant_id);
+CREATE INDEX IF NOT EXISTS ix_deals_pipeline ON dyno_crm.deal(pipeline_id);
+CREATE INDEX IF NOT EXISTS ix_deals_stage ON dyno_crm.deal(stage_id);
+
+-- ----------------------------------------------------------------------
+-- dyno_crm.activity
+-- ----------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS dyno_crm.activity (
+    id UUID PRIMARY KEY,
+    tenant_id UUID NOT NULL,
+    type VARCHAR(20) NOT NULL,
+    title VARCHAR(255),
+    description TEXT,
+    due_date DATE,
+    status VARCHAR(20),
+    assigned_user_id UUID,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    created_by VARCHAR(100),
+    updated_by VARCHAR(100)
+);
+
+CREATE INDEX IF NOT EXISTS ix_activities_tenant ON dyno_crm.activity(tenant_id);
+CREATE INDEX IF NOT EXISTS ix_activities_assigned_user ON dyno_crm.activity(assigned_user_id);
+
+-- ----------------------------------------------------------------------
+-- dyno_crm.association
+-- ----------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS dyno_crm.association (
+    id UUID PRIMARY KEY,
+    tenant_id UUID NOT NULL,
+    from_object_type VARCHAR(50) NOT NULL,
+    from_object_id UUID NOT NULL,
+    to_object_type VARCHAR(50) NOT NULL,
+    to_object_id UUID NOT NULL,
+    association_type VARCHAR(50),
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    created_by VARCHAR(100)
+);
+
+CREATE INDEX IF NOT EXISTS ix_associations_tenant ON dyno_crm.association(tenant_id);
+CREATE INDEX IF NOT EXISTS ix_associations_from ON dyno_crm.association(from_object_id);
+CREATE INDEX IF NOT EXISTS ix_associations_to ON dyno_crm.association(to_object_id);
+
+-- ----------------------------------------------------------------------
+-- dyno_crm.list
+-- ----------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS dyno_crm.list (
+    id UUID PRIMARY KEY,
+    tenant_id UUID NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    object_type VARCHAR(50) NOT NULL,
+    list_type VARCHAR(50) NOT NULL,
+    filter_definition JSON,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    created_by VARCHAR(100),
+    updated_by VARCHAR(100)
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS ux_lists_tenant_name_object
+    ON dyno_crm.list(tenant_id, name, object_type);
+
+CREATE INDEX IF NOT EXISTS ix_lists_tenant ON dyno_crm.list(tenant_id);
+
+-- ----------------------------------------------------------------------
+-- dyno_crm.list_membership (depends on dyno_crm.list)
+-- ----------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS dyno_crm.list_membership (
+    id UUID PRIMARY KEY,
+    list_id UUID NOT NULL,
+    member_id UUID NOT NULL,
+    member_type VARCHAR(50) NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    created_by VARCHAR(100),
+    CONSTRAINT fk_list_memberships_list
+        FOREIGN KEY (list_id) REFERENCES dyno_crm.list(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS ix_list_memberships_list ON dyno_crm.list_membership(list_id);
+CREATE INDEX IF NOT EXISTS ix_list_memberships_member ON dyno_crm.list_membership(member_id);

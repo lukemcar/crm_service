@@ -16,6 +16,20 @@ from typing import Optional
 from pydantic import BaseModel, ConfigDict, Field
 
 
+
+
+class CreateTenantUserShadow(BaseModel):
+    tenant_id: uuid.UUID = Field(..., description="Tenant identifier")
+    user_id: uuid.UUID = Field(..., description="User identifier")
+    display_name: Optional[str] = Field(None, description="Display name of the user")
+    email: Optional[str] = Field(None, description="Email address of the user")
+    is_active: bool = Field(..., description="Whether the user is active")
+
+    # Configure the model to allow attribute-based population from ORM objects
+    model_config = ConfigDict(from_attributes=True, extra="ignore")
+    
+
+
 class TenantUserShadowOut(BaseModel):
     """Response model representing a projected tenant user."""
 
@@ -32,5 +46,6 @@ class TenantUserShadowOut(BaseModel):
 
 
 __all__ = [
+    "CreateTenantUserShadow",
     "TenantUserShadowOut",
 ]

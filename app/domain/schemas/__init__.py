@@ -5,6 +5,8 @@ without needing to know individual module names.  Add new models to
 this file as they are created.
 """
 
+from .common import ErrorResponseBody, PaginationEnvelope
+
 from .contact import (
     # Base
     ContactBase,
@@ -304,6 +306,9 @@ from .kb_article_feedback import (
 )
 
 __all__ = [
+    # Common schemas
+    "ErrorResponseBody",
+    "PaginationEnvelope",
     # Lead schemas
     "LeadData",
     "LeadAddressValue",

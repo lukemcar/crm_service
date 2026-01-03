@@ -5,13 +5,28 @@ that can be included in the FastAPI application.  When adding a new
 entity, import its router here.
 """
 
-from .pipeline import router as pipeline_router
-from .pipeline_stage import router as pipeline_stage_router
-from .deal import router as deal_router
-from .activity import router as activity_router
-from .list import router as list_router
-from .list_membership import router as list_membership_router
-from .association import router as association_router
+# Pipeline routes have been split into admin and tenant modules.  Import
+# the new routers instead of the legacy pipeline router.
+from .pipelines_admin_route import router as pipelines_admin_router
+from .pipelines_tenant_route import router as pipelines_tenant_router
+from .pipeline_stages_admin_route import router as pipeline_stages_admin_router
+from .pipeline_stages_tenant_route import router as pipeline_stages_tenant_router
+# Deal routes have been split into admin and tenant modules following the
+# canonical pattern.  Import the new routers instead of the legacy deal router.
+from .deals_admin_route import router as deals_admin_router
+from .deals_tenant_route import router as deals_tenant_router
+from .activities_admin_route import router as activities_admin_router
+from .activities_tenant_route import router as activities_tenant_router
+# List domain: import new admin and tenant routers.  The legacy list router
+# is no longer included in the API application.
+from .lists_admin_route import router as lists_admin_router
+from .lists_tenant_route import router as lists_tenant_router
+# List membership routes have been split into admin and tenant modules. Import
+# the new routers instead of the legacy list_membership router.
+from .list_memberships_admin_route import router as list_memberships_admin_router
+from .list_memberships_tenant_route import router as list_memberships_tenant_router
+from .associations_admin_route import router as associations_admin_router
+from .associations_tenant_route import router as associations_tenant_router
 from .health import router as health_router
 from .admin import router as admin_router
 from .leads_admin_route import router as leads_admin_router
@@ -89,13 +104,20 @@ from .kb_article_feedback_admin_route import (
 __all__ = [
     "contact_router",
     "company_router",
-    "pipeline_router",
-    "pipeline_stage_router",
-    "deal_router",
-    "activity_router",
-    "list_router",
-    "list_membership_router",
-    "association_router",
+    "pipelines_admin_router",
+    "pipelines_tenant_router",
+    "pipeline_stages_admin_router",
+    "pipeline_stages_tenant_router",
+    "deals_admin_router",
+    "deals_tenant_router",
+    "activities_admin_router",
+    "activities_tenant_router",
+    "lists_admin_router",
+    "lists_tenant_router",
+    "list_memberships_admin_router",
+    "list_memberships_tenant_router",
+    "associations_admin_router",
+    "associations_tenant_router",
     "health_router",
     "admin_router",
     "leads_admin_router",

@@ -1,48 +1,123 @@
-"""Service layer for Deal operations.
+"""
+Service layer for Deal operations.
 
-This module encapsulates database interactions and business logic for
-creating, retrieving, updating and deleting deals.  All functions
-enforce multi‑tenant isolation by scoping queries to the provided
-tenant_id.  Where appropriate, callers are expected to validate
-foreign key references (e.g. pipeline and stage) prior to calling
-these functions.
+This module follows the canonical service pattern established across CRM
+domains.  It provides both tenant‑scoped and admin‑scoped operations for
+deals and is responsible for enforcing tenant isolation, validating
+parent resources (pipelines and stages) where necessary, committing
+transactions via :func:`commit_or_raise` and emitting events through
+``DealMessageProducer`` after successful commits.
+
+Audit fields (``created_by`` and ``updated_by``) are strings derived
+from the ``X-User`` header.  When no user is supplied, ``"anonymous"``
+is used.
 """
 
 from __future__ import annotations
 
-import uuid
-from typing import Iterable, Optional
+from datetime import datetime
+from typing import Iterable, Optional, List, Tuple, Dict, Any
+from uuid import UUID
 
+from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.domain.models.deal import Deal
-from app.domain.schemas.deal import DealCreate, DealUpdate
+from app.domain.schemas.deal import DealCreate, DealUpdate, DealRead
+from app.domain.services.common_service import commit_or_raise
+from app.messaging.producers.deal_producer import DealMessageProducer
 
 
-def list_deals(db: Session, tenant_id: uuid.UUID) -> Iterable[Deal]:
-    """Return all deals for the given tenant."""
-    return db.query(Deal).filter(Deal.tenant_id == tenant_id).all()
+# ---------------------------------------------------------------------------
+# Helper functions
+# ---------------------------------------------------------------------------
+
+def _deal_snapshot(deal: Deal) -> Dict[str, Any]:
+    """
+    Create a dictionary snapshot of a deal for event payloads.
+
+    The snapshot is based on the ``DealRead`` schema to ensure that all
+    consumer‑visible fields are captured.  Using ``from_attributes=True``
+    allows passing ORM instances directly to the Pydantic model.
+    """
+    read_model = DealRead.model_validate(deal, from_attributes=True)
+    return read_model.model_dump()
 
 
-def get_deal(db: Session, deal_id: uuid.UUID, tenant_id: uuid.UUID) -> Optional[Deal]:
-    """Fetch a single deal by ID within the tenant."""
-    return (
+# ---------------------------------------------------------------------------
+# Query helpers
+# ---------------------------------------------------------------------------
+
+def service_list_deals(
+    db: Session,
+    *,
+    tenant_id: Optional[UUID] = None,
+    pipeline_id: Optional[UUID] = None,
+    stage_id: Optional[UUID] = None,
+    limit: Optional[int] = None,
+    offset: Optional[int] = None,
+) -> Tuple[List[Deal], int]:
+    """
+    List deals with optional filtering and pagination.
+
+    If ``tenant_id`` is provided, results are scoped to that tenant.  Additional
+    filters on ``pipeline_id`` and ``stage_id`` further narrow the results.
+
+    Returns a tuple of ``(deals, total)`` where ``deals`` is the list of
+    ``Deal`` ORM instances and ``total`` is the total number of rows
+    matching the criteria (ignoring ``limit`` and ``offset``).
+    """
+    query = db.query(Deal)
+    if tenant_id:
+        query = query.filter(Deal.tenant_id == tenant_id)
+    if pipeline_id:
+        query = query.filter(Deal.pipeline_id == pipeline_id)
+    if stage_id:
+        query = query.filter(Deal.stage_id == stage_id)
+    total = query.count()
+    if limit is not None:
+        query = query.limit(limit)
+    if offset is not None:
+        query = query.offset(offset)
+    return query.all(), total
+
+
+def service_get_deal(
+    db: Session,
+    *,
+    tenant_id: UUID,
+    deal_id: UUID,
+) -> Deal:
+    """
+    Retrieve a single deal by ID for a tenant.
+
+    Raises ``HTTPException`` with status 404 if the deal is not found.
+    """
+    deal = (
         db.query(Deal)
         .filter(Deal.id == deal_id, Deal.tenant_id == tenant_id)
         .first()
     )
+    if not deal:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Deal not found",
+        )
+    return deal
 
 
-def create_deal(
+def service_create_deal(
     db: Session,
-    tenant_id: uuid.UUID,
-    user_id: Optional[uuid.UUID],
+    *,
+    tenant_id: UUID,
     deal_in: DealCreate,
+    created_user: str,
 ) -> Deal:
-    """Create a new deal for the tenant.
+    """
+    Create a new deal and emit a ``deal.created`` event.
 
-    The caller should ensure that the referenced pipeline and stage
-    belong to the same tenant before creating the deal.
+    The caller must validate that the referenced pipeline and stage belong
+    to the specified tenant prior to calling this function.
     """
     deal = Deal(
         tenant_id=tenant_id,
@@ -52,26 +127,47 @@ def create_deal(
         pipeline_id=deal_in.pipeline_id,
         stage_id=deal_in.stage_id,
         probability=deal_in.probability,
-        created_by=user_id,
-        updated_by=user_id,
+        created_by=created_user,
+        updated_by=created_user,
     )
     db.add(deal)
-    db.commit()
+    # Commit the transaction.  If an integrity error occurs, it will be raised
+    # from commit_or_raise and the caller should handle it accordingly.
+    commit_or_raise(db)
     db.refresh(deal)
+    # Emit event after commit
+    try:
+        payload = _deal_snapshot(deal)
+        DealMessageProducer.send_deal_created(
+            tenant_id=tenant_id,
+            payload=payload,
+        )
+    except Exception:
+        # Log the error but do not raise; the database transaction already succeeded.
+        pass
     return deal
 
 
-def update_deal(
+def service_update_deal(
     db: Session,
-    deal: Deal,
-    user_id: Optional[uuid.UUID],
+    *,
+    tenant_id: UUID,
+    deal_id: UUID,
     deal_in: DealUpdate,
+    modified_user: str,
 ) -> Deal:
-    """Update fields of an existing deal.
-
-    Only provided fields are updated.  Caller must perform any
-    necessary foreign key validation before invoking this function.
     """
+    Update an existing deal and emit a ``deal.updated`` event if changes are detected.
+
+    Only fields explicitly provided in ``deal_in`` are updated.  The caller
+    should validate any foreign keys (pipeline_id, stage_id) prior to calling
+    this function.
+    """
+    # Fetch the current deal
+    deal = service_get_deal(db, tenant_id=tenant_id, deal_id=deal_id)
+    # Create snapshot of current state for change detection
+    before = _deal_snapshot(deal)
+    # Apply updates
     if deal_in.name is not None:
         deal.name = deal_in.name
     if deal_in.amount is not None:
@@ -84,13 +180,50 @@ def update_deal(
         deal.stage_id = deal_in.stage_id
     if deal_in.probability is not None:
         deal.probability = deal_in.probability
-    deal.updated_by = user_id
-    db.commit()
+    deal.updated_by = modified_user
+    # Commit changes
+    commit_or_raise(db)
     db.refresh(deal)
+    # Determine changes and emit event if any
+    after = _deal_snapshot(deal)
+    changes = {
+        key: after[key]
+        for key in after.keys()
+        if before.get(key) != after.get(key)
+    }
+    if changes:
+        try:
+            DealMessageProducer.send_deal_updated(
+                tenant_id=tenant_id,
+                changes=changes,
+                payload=after,
+            )
+        except Exception:
+            # Swallow messaging exceptions to avoid masking DB success
+            pass
     return deal
 
 
-def delete_deal(db: Session, deal: Deal) -> None:
-    """Delete the specified deal."""
+def service_delete_deal(
+    db: Session,
+    *,
+    tenant_id: UUID,
+    deal_id: UUID,
+) -> None:
+    """
+    Delete a deal and emit a ``deal.deleted`` event.
+
+    Raises 404 if the deal is not found.
+    """
+    deal = service_get_deal(db, tenant_id=tenant_id, deal_id=deal_id)
     db.delete(deal)
-    db.commit()
+    commit_or_raise(db)
+    # Emit deletion event
+    try:
+        deleted_dt = datetime.utcnow().isoformat()
+        DealMessageProducer.send_deal_deleted(
+            tenant_id=tenant_id,
+            deleted_dt=deleted_dt,
+        )
+    except Exception:
+        pass

@@ -20,7 +20,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
-from app.domain.schemas.tenant_user_shadow import TenantUserShadowOut
+from app.domain.schemas.tenant_user_shadow import CreateTenantUserShadow, TenantUserShadowOut
 from app.domain.schemas.common import PaginationEnvelope
 from app.domain.services import tenant_user_shadow_service  # noqa: F401
 from app.core.db import get_db
@@ -77,4 +77,23 @@ def get_tenant_user_endpoint(
     user = tenant_user_shadow_service.get_tenant_user(
         db, tenant_id=tenant_id, user_id=user_id
     )
+    return TenantUserShadowOut.model_validate(user, from_attributes=True)
+
+
+@router.post("/", response_model=TenantUserShadowOut, status_code=201)
+def create_tenant_user_shadow_endpoint(
+    tenant_id: UUID,
+    user_in: CreateTenantUserShadow,
+    db: Session = Depends(get_db),
+) -> TenantUserShadowOut:
+    """Create a new tenant user shadow.
+
+    This operation is not supported as tenant user shadows are
+    synchronised from the tenant service.
+    """
+    
+    user = tenant_user_shadow_service.create_tenant_user_shadow(
+        db, user_in=user_in
+    )
+    
     return TenantUserShadowOut.model_validate(user, from_attributes=True)

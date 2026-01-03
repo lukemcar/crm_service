@@ -15,6 +15,15 @@ from typing import Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
+class CreateTenantGroupShadow:
+    tenant_id: uuid.UUID = Field(..., description="Tenant identifier")
+    group_name: str = Field(..., description="Name of the group")
+    group_key: Optional[str] = Field(None, description="Stable key for orchestration integration")
+    description: Optional[str] = Field(None, description="Description of the group")
+    is_active: bool = Field(..., description="Whether the group is active")
+
+    model_config = ConfigDict(from_attributes=True, extra="ignore")
+
 
 class TenantGroupShadowOut(BaseModel):
     """Response model representing a projected tenant group."""

@@ -1,9 +1,18 @@
 """
-Producer for deal lifecycle events.
+Deal event producer for the CRM service.
 
-Publishes events when deals are created, updated or deleted.  These
-events allow downstream services to stay in sync with changes to
-revenue opportunities.
+This module defines a message producer class that publishes deal
+lifecycle events to the CRM exchange via Celery.  Each CRUD action
+on a deal results in a message being sent with a fully qualified
+task name (e.g. ``crm.deal.created``).  Messages are wrapped in
+Pydantic models to ensure consistent schema across producers and
+consumers.  Headers include the tenant ID to aid in routing and
+filtering.
+
+``DealMessageProducer`` should be used by the service layer
+(``deal_service.py``) to emit events after a successful database
+commit.  Consumers of deal events can rely on these messages
+being sent exactly once after the transaction has been committed.
 """
 
 from __future__ import annotations
@@ -11,7 +20,8 @@ from __future__ import annotations
 from typing import Any, Dict
 from uuid import UUID
 
-from app.domain.schemas.events import (
+from app.core.celery_app import EXCHANGE_NAME
+from app.domain.schemas.events.deal_event import (
     DealCreatedMessage,
     DealUpdatedMessage,
     DealDeletedMessage,
@@ -19,38 +29,74 @@ from app.domain.schemas.events import (
 from .common import BaseProducer
 
 
-class DealProducer(BaseProducer):
-    """Producer for deal events."""
+class DealMessageProducer(BaseProducer):
+    """Publishes deal lifecycle events via Celery.
+
+    Task names are derived from the global ``EXCHANGE_NAME`` so that
+    deals share the same exchange as other CRM entities.  Each event
+    includes headers containing the tenant ID to aid in routing and
+    filtering.  Clients should always prefer these ``send_*`` methods
+    for publishing events.
+    """
+
+    # Fully qualified task names following the pattern ``<exchange>.deal.<action>``
+    TASK_CREATED: str = f"{EXCHANGE_NAME}.deal.created"
+    TASK_UPDATED: str = f"{EXCHANGE_NAME}.deal.updated"
+    TASK_DELETED: str = f"{EXCHANGE_NAME}.deal.deleted"
+
+    @staticmethod
+    def _build_headers(*, tenant_id: UUID) -> Dict[str, str]:
+        """Construct message headers to include the tenant identifier."""
+        return {
+            "tenant_id": str(tenant_id),
+        }
 
     @classmethod
-    def publish_deal_created(
+    def send_deal_created(
         cls,
         *,
         tenant_id: UUID,
         payload: Dict[str, Any],
     ) -> None:
-        message = DealCreatedMessage(tenant_id=tenant_id, payload=payload)
-        cls._send(task_name="crm.deal.created", message_model=message)
+        """Publish a deal.created event."""
+        message = DealCreatedMessage(
+            tenant_id=tenant_id,
+            payload=payload,
+        )
+        headers = cls._build_headers(tenant_id=tenant_id)
+        cls._send(task_name=cls.TASK_CREATED, message_model=message, headers=headers)
 
     @classmethod
-    def publish_deal_updated(
+    def send_deal_updated(
         cls,
         *,
         tenant_id: UUID,
         changes: Dict[str, Any],
         payload: Dict[str, Any],
     ) -> None:
+        """Publish a deal.updated event."""
         message = DealUpdatedMessage(
-            tenant_id=tenant_id, changes=changes, payload=payload
+            tenant_id=tenant_id,
+            changes=changes,
+            payload=payload,
         )
-        cls._send(task_name="crm.deal.updated", message_model=message)
+        headers = cls._build_headers(tenant_id=tenant_id)
+        cls._send(task_name=cls.TASK_UPDATED, message_model=message, headers=headers)
 
     @classmethod
-    def publish_deal_deleted(
+    def send_deal_deleted(
         cls,
         *,
         tenant_id: UUID,
         deleted_dt: str | None = None,
     ) -> None:
-        message = DealDeletedMessage(tenant_id=tenant_id, deleted_dt=deleted_dt)
-        cls._send(task_name="crm.deal.deleted", message_model=message)
+        """Publish a deal.deleted event."""
+        message = DealDeletedMessage(
+            tenant_id=tenant_id,
+            deleted_dt=deleted_dt,
+        )
+        headers = cls._build_headers(tenant_id=tenant_id)
+        cls._send(task_name=cls.TASK_DELETED, message_model=message, headers=headers)
+
+# Backwards compatibility alias
+DealProducer = DealMessageProducer

@@ -1,12 +1,31 @@
-from .activity_producer import ActivityProducer as ActivityMessageProducer
-from .association_producer import AssociationProducer as AssociationMessageProducer
+# Import the canonical ActivityMessageProducer.  The alias is no longer
+# required because the class name already reflects its purpose.
+from .activity_producer import ActivityMessageProducer
+# Import the canonical AssociationMessageProducer.  The alias is no longer
+# required because the class name already reflects its purpose.
+from .association_producer import AssociationMessageProducer
 from .company_producer import CompanyMessageProducer
 from .contact_producer import ContactMessageProducer
-from .deal_producer import DealProducer as DealMessageProducer
+# Deal domain exports: import the canonical DealMessageProducer and backwards
+# compatibility alias DealProducer.  Clients should prefer DealMessageProducer
+# for clarity, while DealProducer remains for existing imports.
+from .deal_producer import DealMessageProducer, DealProducer
 from .lead_producer import LeadMessageProducer
-from .list_producer import ListProducer as ListMessageProducer
-from .pipeline_producer import PipelineProducer as PipelineMessageProducer
-from .pipeline_stage_producer import PipelineStageProducer as PipelineStageMessageProducer
+# List domain exports: import the canonical ListMessageProducer and backwards
+# compatibility alias ListProducer.  Clients should prefer ListMessageProducer
+# for clarity, while ListProducer remains for existing imports.
+from .list_producer import ListMessageProducer, ListProducer
+from .list_membership_producer import (
+    ListMembershipMessageProducer,
+    ListMembershipProducer,
+)
+# Pipeline domain exports: import the canonical PipelineMessageProducer and
+# backwards compatibility alias PipelineProducer.  Clients should prefer
+# PipelineMessageProducer for clarity.
+from .pipeline_producer import PipelineMessageProducer, PipelineProducer
+# Pipeline stage domain exports: import the canonical PipelineStageMessageProducer
+# and alias PipelineStageProducer for backwards compatibility.
+from .pipeline_stage_producer import PipelineStageMessageProducer, PipelineStageProducer
 from .group_profile_producer import GroupProfileMessageProducer
 from .inbound_channel_producer import InboundChannelMessageProducer
 from .ticket_producer import TicketMessageProducer
@@ -44,8 +63,12 @@ __all__ = [
     "CompanyMessageProducer",
     "ContactMessageProducer",
     "DealMessageProducer",
+    "DealProducer",
     "LeadMessageProducer",
     "ListMessageProducer",
+    "ListProducer",
+    "ListMembershipMessageProducer",
+    "ListMembershipProducer",
     "PipelineMessageProducer",
     "PipelineStageMessageProducer",
     "GroupProfileMessageProducer",
