@@ -31,7 +31,7 @@ def list_stages(db: Session, tenant_id: uuid.UUID , pipeline_id: uuid.UUID) -> I
     return (
         db.query(PipelineStage)
         .filter(PipelineStage.pipeline_id == pipeline_id, PipelineStage.tenant_id == tenant_id)
-        .order_by(PipelineStage.stage_order.asc())
+        .order_by(PipelineStage.display_order.asc())
         .all()
     )
 
@@ -85,9 +85,12 @@ def create_stage(
             )   
     stage = PipelineStage(
         pipeline_id=stage_in.pipeline_id,
+        tenant_id=tentant_id,
         name=stage_in.name,
-        stage_order=stage_in.stage_order,
+        display_order=stage_in.display_order,
         probability=stage_in.probability,
+        stage_state=stage_in.stage_state or "NOT_STARTED",
+        inherit_pipeline_actions=stage_in.inherit_pipeline_actions if stage_in.inherit_pipeline_actions is not None else False,
         created_by=user_id,
         updated_by=user_id,
     )
@@ -163,7 +166,7 @@ def service_list_stages(
             PipelineStage.pipeline_id == pipeline_id,
             PipelineStage.tenant_id == tenant_id,
         )
-        .order_by(PipelineStage.stage_order.asc())
+        .order_by(PipelineStage.display_order.asc())
     )
     total = query.count()
     if limit is not None:
@@ -217,7 +220,7 @@ def service_create_stage(
         PipelineStage.tenant_id == tenant_id,
         or_(
             PipelineStage.name == stage_in.name,
-            PipelineStage.stage_order == stage_in.stage_order,
+            PipelineStage.display_order == stage_in.display_order,
         ),
     ).first()
     if existing:
@@ -235,8 +238,10 @@ def service_create_stage(
         pipeline_id=pipeline_id,
         tenant_id=tenant_id,
         name=stage_in.name,
-        stage_order=stage_in.stage_order,
+        display_order=stage_in.display_order,
         probability=stage_in.probability,
+        stage_state=stage_in.stage_state or "NOT_STARTED",
+        inherit_pipeline_actions=stage_in.inherit_pipeline_actions if stage_in.inherit_pipeline_actions is not None else False,
         created_by=created_user,
         updated_by=created_user,
     )
@@ -289,7 +294,7 @@ def service_update_stage(
             PipelineStage.tenant_id == tenant_id,
             or_(
                 PipelineStage.name == (stage_in.name if stage_in.name is not None else stage.name),
-                PipelineStage.stage_order == (stage_in.stage_order if stage_in.stage_order is not None else stage.stage_order),
+                PipelineStage.display_order == (stage_in.display_order if stage_in.display_order is not None else stage.display_order),
             ),
         ).first()
         if duplicate:
@@ -300,7 +305,9 @@ def service_update_stage(
                         status_code=status.HTTP_409_CONFLICT,
                         detail="A stage with this name already exists in the target pipeline.",
                     )
-                elif duplicate.stage_order == (stage_in.stage_order if stage_in.stage_order is not None else stage.stage_order):
+                elif duplicate.display_order == (
+                    stage_in.display_order if stage_in.display_order is not None else stage.display_order
+                ):
                     raise HTTPException(
                         status_code=status.HTTP_409_CONFLICT,
                         detail="A stage with this order already exists in the target pipeline.",
@@ -324,11 +331,11 @@ def service_update_stage(
         stage.name = stage_in.name
         changes["name"] = stage_in.name
     # Update order
-    if stage_in.stage_order is not None and stage_in.stage_order != stage.stage_order:
+    if stage_in.display_order is not None and stage_in.display_order != stage.display_order:
         dup_order = db.query(PipelineStage).filter(
             PipelineStage.pipeline_id == stage.pipeline_id,
             PipelineStage.tenant_id == tenant_id,
-            PipelineStage.stage_order == stage_in.stage_order,
+            PipelineStage.display_order == stage_in.display_order,
             PipelineStage.id != stage.id,
         ).first()
         if dup_order:
@@ -336,12 +343,25 @@ def service_update_stage(
                 status_code=status.HTTP_409_CONFLICT,
                 detail="A stage with this order already exists in the pipeline.",
             )
-        stage.stage_order = stage_in.stage_order
-        changes["stage_order"] = stage_in.stage_order
+        stage.display_order = stage_in.display_order
+        changes["display_order"] = stage_in.display_order
     # Update probability
     if stage_in.probability is not None and stage_in.probability != stage.probability:
         stage.probability = stage_in.probability
         changes["probability"] = stage_in.probability
+
+    # Update stage_state
+    if stage_in.stage_state is not None and stage_in.stage_state != stage.stage_state:
+        stage.stage_state = stage_in.stage_state
+        changes["stage_state"] = stage_in.stage_state
+
+    # Update inherit_pipeline_actions
+    if (
+        stage_in.inherit_pipeline_actions is not None
+        and stage_in.inherit_pipeline_actions != stage.inherit_pipeline_actions
+    ):
+        stage.inherit_pipeline_actions = stage_in.inherit_pipeline_actions
+        changes["inherit_pipeline_actions"] = stage_in.inherit_pipeline_actions
     stage.updated_by = updated_user
     commit_or_raise(db, refresh=stage)
     if changes:

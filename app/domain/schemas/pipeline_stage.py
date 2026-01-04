@@ -16,19 +16,49 @@ from pydantic import BaseModel, Field, ConfigDict
 class PipelineStageBase(BaseModel):
     pipeline_id: Optional[UUID]
     name: str = Field(..., max_length=255)
-    stage_order: int
-    probability: Optional[float] = None
+    # display_order replaces stage_order from the original schema
+    display_order: int = Field(
+        ..., description="Position of the stage within its pipeline"
+    )
+    probability: Optional[float] = Field(
+        default=None,
+        description="Probability value between 0 and 1; None if not applicable",
+    )
+    stage_state: Optional[str] = Field(
+        default=None,
+        max_length=30,
+        description="Current state of the stage (e.g., NOT_STARTED, ACTIVE, WON, LOST)",
+    )
+    inherit_pipeline_actions: Optional[bool] = Field(
+        default=None,
+        description="Whether this stage inherits automation actions from the parent pipeline",
+    )
 
 
 class PipelineStageCreate(PipelineStageBase):
+    """Schema for creating a pipeline stage."""
     pass
 
 
 class PipelineStageUpdate(BaseModel):
     pipeline_id: Optional[UUID] = None
     name: Optional[str] = Field(None, max_length=255)
-    stage_order: Optional[int] = None
-    probability: Optional[float] = None
+    display_order: Optional[int] = Field(
+        None, description="Position of the stage within its pipeline"
+    )
+    probability: Optional[float] = Field(
+        None,
+        description="Probability value between 0 and 1; None if not applicable",
+    )
+    stage_state: Optional[str] = Field(
+        None,
+        max_length=30,
+        description="Current state of the stage (e.g., NOT_STARTED, ACTIVE, WON, LOST)",
+    )
+    inherit_pipeline_actions: Optional[bool] = Field(
+        None,
+        description="Whether this stage inherits automation actions from the parent pipeline",
+    )
 
 
 class PipelineStageRead(PipelineStageBase):

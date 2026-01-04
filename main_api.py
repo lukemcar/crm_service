@@ -82,6 +82,13 @@ from app.api.routes import (
     kb_article_revisions_admin_router,
     kb_article_feedback_tenant_router,
     kb_article_feedback_admin_router,
+
+    # Record watcher routers
+    record_watchers_admin_router,
+    record_watchers_tenant_router,
+    # Automation action routers
+    automation_actions_admin_router,
+    automation_actions_tenant_router,
 )
 
 # Initialise logging and telemetry when the app is created.  Doing
@@ -211,6 +218,14 @@ def create_app() -> FastAPI:
     app.include_router(kb_article_revisions_admin_router)
     app.include_router(kb_article_feedback_tenant_router)
     app.include_router(kb_article_feedback_admin_router)
+
+    # Include record watcher routers (admin and tenant)
+    app.include_router(record_watchers_admin_router)
+    app.include_router(record_watchers_tenant_router)
+
+    # Include automation action routers (admin and tenant)
+    app.include_router(automation_actions_admin_router)
+    app.include_router(automation_actions_tenant_router)
 
     # Instrument the FastAPI application for tracing.  This will
     # automatically create spans for incoming requests.  If

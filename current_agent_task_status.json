@@ -1,0 +1,1358 @@
+{
+  "versioning": {
+    "project_id": "crm_service",
+    "current_iteration": 9,
+    "latest_iteration_id": "ITER-0009"
+  },
+  "files_history": {
+    "inputs": [
+      {
+        "file_id": "IN-0001",
+        "name": "crm_service.zip",
+        "notes": "Initial project source"
+      },
+      {
+        "file_id": "IN-0002",
+        "name": "Implementation guide.pdf",
+        "notes": "Implementation guide for CRM change request"
+      }
+    ],
+    "outputs": [
+      {
+        "file_id": "file-2Y5nobkKeVdtitg3VRUkPL",
+        "name": "updated_crm_service_T001.zip",
+        "iteration_id": "ITER-0001"
+      },
+      {
+        "file_id": "file-Xo4B6fJuVDVKLydHkJydku",
+        "name": "updated_crm_service_T050.zip",
+        "iteration_id": "ITER-0005"
+      }
+    ],
+    "artifacts": [
+      {
+        "file_id": "file-QWP2uGHECRgtCgkDo42WMn",
+        "name": "consolidated_crm_change_request.md",
+        "iteration_id": "ITER-0001"
+      }
+    ]
+  },
+  "iterations": [
+    {
+      "iteration_id": "ITER-0001",
+      "iteration_number": 1,
+      "run": {
+        "run_id": "829ab175-2666-4b9f-b9c9-15a5dd3e9e56",
+        "agent_role": "backend engineer",
+        "agent_script_title": "Consolidated CRM Change Implementation",
+        "started_at": "2026-01-03T18:15:14Z",
+        "completed_at": "2026-01-03T18:15:14Z",
+        "status": "COMPLETED"
+      },
+      "inputs_used": [
+        {
+          "file_id": "IN-0001",
+          "name": "crm_service.zip",
+          "notes": "Initial project source"
+        },
+        {
+          "file_id": "IN-0002",
+          "name": "Implementation guide.pdf",
+          "notes": "Implementation guide for CRM change request"
+        }
+      ],
+      "state_file_handling": {
+        "loaded_from": "workspace",
+        "loaded_file_id": null,
+        "merged": false,
+        "merge_notes": ""
+      },
+      "outputs_produced": [
+        {
+          "file_id": "file-2Y5nobkKeVdtitg3VRUkPL",
+          "name": "updated_crm_service_T001.zip",
+          "notes": "State initialization and inventory"
+        }
+      ],
+      "artifacts_produced": [
+        {
+          "file_id": "file-QWP2uGHECRgtCgkDo42WMn",
+          "name": "consolidated_crm_change_request.md"
+        }
+      ],
+      "change_log": {
+        "entry_title": "2026-01-03 - Inventory and State Initialization",
+        "summary": "Performed inventory of the existing CRM service and initialised task state file.",
+        "added": [
+          "Initial state file current_agent_task_status.json",
+          "Inventory document consolidated_crm_change_request.md"
+        ],
+        "changed": [],
+        "fixed": [],
+        "tests": [],
+        "notes": [
+          "No code changes were made."
+        ],
+        "files_modified": [
+          "CHANGELOG.md"
+        ],
+        "files_added": [
+          "current_agent_task_status.json",
+          "consolidated_crm_change_request.md"
+        ],
+        "files_deleted": [],
+        "commands_executed": [
+          {
+            "command": "python -m compileall -q app",
+            "status": "PASS",
+            "ts": "2026-01-03T18:15:14Z",
+            "notes": ""
+          }
+        ]
+      },
+      "task_snapshot": {
+        "counts_by_status": {
+          "NOT_STARTED": 14,
+          "IN_PROGRESS": 0,
+          "BLOCKED": 0,
+          "COMPLETED": 1,
+          "DEFERRED": 0
+        },
+        "current_task_id": "T010",
+        "notes_for_next_session": [
+          "Proceed to implement Record Watcher domain (T010) following patterns observed.",
+          "Refer to implementation guide for specific field requirements."
+        ]
+      },
+      "history": [
+        {
+          "ts": "2026-01-03T18:15:14Z",
+          "event": "NOTE",
+          "details": "Inventory and state initialization completed."
+        }
+      ]
+    },
+    {
+      "iteration_id": "ITER-0002",
+      "iteration_number": 2,
+      "run": {
+        "run_id": "19a28329-df26-4426-8daf-b6d7a08a7174",
+        "agent_role": "backend engineer",
+        "agent_script_title": "Consolidated CRM Change Implementation",
+        "started_at": "2026-01-03T18:36:54Z",
+        "completed_at": "2026-01-03T18:37:20Z",
+        "status": "COMPLETED"
+      },
+      "inputs_used": [
+        {
+          "file_id": "file-2Y5nobkKeVdtitg3VRUkPL",
+          "name": "updated_crm_service_T001.zip",
+          "notes": "Project state from previous iteration."
+        },
+        {
+          "file_id": "N/A",
+          "name": "Implementation guide.pdf",
+          "notes": "Reference implementation guide."
+        }
+      ],
+      "state_file_handling": {
+        "loaded_from": "workspace",
+        "loaded_file_id": null,
+        "merged": false,
+        "merge_notes": ""
+      },
+      "outputs_produced": [
+        {
+          "file_id": "file-DEf3FA5hF2sy6DtMDeK6CD",
+          "name": "updated_crm_service_T010.zip",
+          "notes": "Project package with RecordWatcher domain skeleton implementation"
+        }
+      ],
+      "artifacts_produced": [],
+      "change_log": {
+        "entry_title": "2026-01-03 - Record Watcher domain skeleton implemented",
+        "summary": "Initial implementation of the Record Watcher domain including core components and route wiring.",
+        "added": [
+          "RecordWatcher model, schemas, service, event schemas, producer, admin and tenant routes"
+        ],
+        "changed": [
+          "Imported new routers into API aggregator and main API application",
+          "Updated model and schema __init__ to include RecordWatcher"
+        ],
+        "fixed": [],
+        "tests": [],
+        "notes": [
+          "Routes currently lack validation of referenced record existence; tests pending"
+        ],
+        "files_modified": [
+          "workspace/app/api/routes/__init__.py",
+          "workspace/main_api.py",
+          "workspace/app/domain/models/__init__.py",
+          "workspace/app/domain/schemas/__init__.py"
+        ],
+        "files_added": [
+          "workspace/app/domain/models/record_watcher.py",
+          "workspace/app/domain/schemas/record_watcher.py",
+          "workspace/app/domain/schemas/events/record_watcher_event.py",
+          "workspace/app/messaging/producers/record_watcher_producer.py",
+          "workspace/app/domain/services/record_watcher_service.py",
+          "workspace/app/api/routes/record_watchers_admin_route.py",
+          "workspace/app/api/routes/record_watchers_tenant_route.py"
+        ],
+        "files_deleted": [],
+        "commands_executed": [
+          {
+            "command": "python -m compileall -q app",
+            "status": "PASS",
+            "ts": "2026-01-03T18:36:54Z",
+            "notes": ""
+          }
+        ]
+      },
+      "task_snapshot": {
+        "counts_by_status": {
+          "NOT_STARTED": 13,
+          "IN_PROGRESS": 1,
+          "BLOCKED": 0,
+          "COMPLETED": 1,
+          "DEFERRED": 0
+        },
+        "current_task_id": "T010",
+        "notes_for_next_session": [
+          "Complete tests and validation for record watcher domain; move to automation action domain next if time allows."
+        ]
+      },
+      "history": [
+        {
+          "ts": "2026-01-03T18:36:54Z",
+          "event": "NOTE",
+          "details": "Record watcher domain implementation begun."
+        }
+      ]
+    },
+    {
+      "iteration_id": "ITER-0003",
+      "iteration_number": 3,
+      "run": {
+        "run_id": "8c133de5-bff1-4a87-a590-f483908bce86",
+        "agent_role": "backend engineer",
+        "agent_script_title": "Consolidated CRM Change Implementation",
+        "started_at": "2026-01-03T19:23:38Z",
+        "completed_at": "2026-01-03T19:23:58Z",
+        "status": "COMPLETED"
+      },
+      "inputs_used": [
+        {
+          "file_id": "file-QFAN8Hwe4RBeUJNLEpJ7Tr",
+          "name": "updated_crm_service_T010.zip",
+          "notes": "Output from previous iteration"
+        }
+      ],
+      "state_file_handling": {
+        "loaded_from": "workspace",
+        "loaded_file_id": null,
+        "merged": false,
+        "merge_notes": ""
+      },
+      "outputs_produced": [
+        {
+          "file_id": "file-XQFTXCSvH8vBJHiCPjeGr1",
+          "name": "updated_crm_service_T010.zip",
+          "notes": "Package including record watcher tests"
+        }
+      ],
+      "artifacts_produced": [],
+      "change_log": {
+        "entry_title": "2026-01-03 - Record Watcher tests added",
+        "summary": "Added tests for record watcher routes and updated changelog accordingly.",
+        "added": [
+          "Record watcher route tests in tests/test_record_watcher_routes.py"
+        ],
+        "changed": [
+          "Updated CHANGELOG.md to reflect added tests"
+        ],
+        "fixed": [],
+        "tests": [
+          "Added tests for admin and tenant record watcher endpoints using DummySession and monkeypatch"
+        ],
+        "notes": [
+          "Still pending: service level validation and failure tests"
+        ],
+        "files_modified": [
+          "workspace/CHANGELOG.md"
+        ],
+        "files_added": [
+          "workspace/tests/test_record_watcher_routes.py"
+        ],
+        "files_deleted": [],
+        "commands_executed": [
+          {
+            "command": "python -m compileall -q app",
+            "status": "PASS",
+            "ts": "2026-01-03T19:23:38Z",
+            "notes": ""
+          }
+        ]
+      },
+      "task_snapshot": {
+        "counts_by_status": {
+          "NOT_STARTED": 13,
+          "IN_PROGRESS": 1,
+          "BLOCKED": 0,
+          "COMPLETED": 1,
+          "DEFERRED": 0
+        },
+        "current_task_id": "T010",
+        "notes_for_next_session": [
+          "Implement record watcher service validations and start automation action domain implementation."
+        ]
+      },
+      "history": [
+        {
+          "ts": "2026-01-03T19:23:38Z",
+          "event": "NOTE",
+          "details": "Added record watcher route tests and updated changelog."
+        }
+      ]
+    },
+    {
+      "iteration_id": "ITER-0004",
+      "iteration_number": 4,
+      "run": {
+        "run_id": "ITER-0004",
+        "agent_role": "backend_engineer",
+        "agent_script_title": "Consolidated CRM Change Implementation",
+        "started_at": "2026-01-03T19:36:40Z",
+        "completed_at": "2026-01-03T19:36:40Z",
+        "status": "COMPLETED"
+      },
+      "inputs_used": [
+        {
+          "file_id": "file-XQFTXCSvH8vBJHiCPjeGr1",
+          "name": "updated_crm_service_T010.zip",
+          "notes": "Previous project state"
+        }
+      ],
+      "state_file_handling": {
+        "loaded_from": "workspace",
+        "loaded_file_id": null,
+        "merged": false,
+        "merge_notes": ""
+      },
+      "outputs_produced": [
+        {
+          "file_id": "file-VkVhyHH5yVCjuh2gFLyuRV",
+          "name": "updated_crm_service_T020.zip",
+          "notes": "Project package including automation action refinement and state"
+        }
+      ],
+      "artifacts_produced": [],
+      "change_log": {
+        "entry_title": "2026-01-03 - Automation action model refinement and execution logging",
+        "summary": "Added database check constraint and foreign keys to automation_action model; updated change log; ensured compile success.",
+        "added": [
+          "Check constraint for single scope on automation_action",
+          "Foreign keys on pipeline_id, pipeline_stage_id, list_id"
+        ],
+        "changed": [
+          "Updated automation_action __table_args__ and constraints"
+        ],
+        "fixed": [],
+        "tests": [],
+        "notes": [
+          "Further tests and validations to be added in next iteration"
+        ],
+        "files_modified": [
+          "app/domain/models/automation_action.py",
+          "CHANGELOG.md",
+          "current_agent_task_status.json"
+        ],
+        "files_added": [],
+        "files_deleted": [],
+        "commands_executed": [
+          {
+            "command": "python -m compileall -q app",
+            "status": "PASS",
+            "ts": "2026-01-03T19:36:40Z",
+            "notes": "Compilation succeeded"
+          }
+        ]
+      },
+      "task_snapshot": {
+        "counts_by_status": {
+          "COMPLETED": 2,
+          "IN_PROGRESS": 2,
+          "NOT_STARTED": 11
+        },
+        "current_task_id": "T020",
+        "notes_for_next_session": [
+          "Continue implementing automation action service tests and validations",
+          "Begin working on stage history domain if time allows"
+        ]
+      },
+      "history": [
+        {
+          "ts": "2026-01-03T19:36:40Z",
+          "event": "NOTE",
+          "details": "Refined automation_action model and state file"
+        }
+      ]
+    },
+    {
+      "iteration_id": "ITER-0005",
+      "iteration_number": 5,
+      "run": {
+        "run_id": "0cbfad85-52b9-4969-b406-5ecc1d637823",
+        "agent_role": "backend engineer",
+        "agent_script_title": "Consolidated CRM Change Implementation",
+        "started_at": "2026-01-03T20:04:22Z",
+        "completed_at": "2026-01-03T20:04:22Z",
+        "status": "COMPLETED"
+      },
+      "inputs_used": [
+        {
+          "file_id": "file-2Y5nobkKeVdtitg3VRUkPL",
+          "name": "updated_crm_service_T001.zip",
+          "notes": "Base project from previous iteration"
+        }
+      ],
+      "state_file_handling": {
+        "loaded_from": "workspace",
+        "loaded_file_id": "file-2Y5nobkKeVdtitg3VRUkPL",
+        "merged": false,
+        "merge_notes": ""
+      },
+      "outputs_produced": [
+        {
+          "file_id": "file-Xo4B6fJuVDVKLydHkJydku",
+          "name": "updated_crm_service_T050.zip",
+          "notes": "Stage history and pipeline enhancements implementation"
+        }
+      ],
+      "artifacts_produced": [],
+      "change_log": {
+        "entry_title": "2026-01-03 - Stage History and Pipeline Enhancements Implementation",
+        "summary": "Implemented stage history domain and added pipeline enhancements with new fields and filters.",
+        "added": [
+          "Stage history model, schemas, service, event producer and route",
+          "New fields on Pipeline model with defaults and validations",
+          "Filtering by object_type and is_active in pipeline listing"
+        ],
+        "changed": [
+          "Pipeline service and routes updated to handle new fields"
+        ],
+        "fixed": [],
+        "tests": [
+          "Added route tests for stage history listing"
+        ],
+        "notes": [
+          "Further tests for pipeline enhancements will be added in subsequent iterations"
+        ],
+        "files_modified": [
+          "app/domain/models/pipeline.py",
+          "app/domain/schemas/pipeline.py",
+          "app/domain/services/pipeline_service.py",
+          "app/api/routes/pipelines_admin_route.py",
+          "app/api/routes/pipelines_tenant_route.py",
+          "CHANGELOG.md"
+        ],
+        "files_added": [],
+        "files_deleted": [],
+        "commands_executed": [
+          {
+            "command": "python -m compileall -q app",
+            "status": "PASS",
+            "ts": "2026-01-03T20:04:22Z",
+            "notes": ""
+          }
+        ]
+      },
+      "task_snapshot": {
+        "counts_by_status": {
+          "NOT_STARTED": 9,
+          "IN_PROGRESS": 2,
+          "BLOCKED": 0,
+          "COMPLETED": 4,
+          "DEFERRED": 0
+        },
+        "current_task_id": "T050",
+        "notes_for_next_session": [
+          "Implement tests for enhanced pipeline domain and update pipeline stage domain (T060)"
+        ]
+      },
+      "history": []
+    },
+    {
+      "iteration_id": "ITER-0006",
+      "iteration_number": 6,
+      "run": {
+        "run_id": "960211fa-f06e-4c7b-a535-f35f5e9f42b8",
+        "agent_role": "backend_engineer",
+        "agent_script_title": "Consolidated CRM Change Implementation",
+        "started_at": "2026-01-03T20:37:43Z",
+        "completed_at": "2026-01-03T20:37:43Z",
+        "status": "COMPLETED"
+      },
+      "inputs_used": [
+        {
+          "file_id": "unknown",
+          "name": "updated_crm_service_T050.zip",
+          "notes": "Used as baseline"
+        }
+      ],
+      "state_file_handling": {
+        "loaded_from": "workspace",
+        "loaded_file_id": "unknown",
+        "merged": false,
+        "merge_notes": ""
+      },
+      "outputs_produced": [],
+      "artifacts_produced": [],
+      "change_log": {
+        "entry_title": "2026-01-03 - List and Membership Domain Enhancements",
+        "summary": "Implemented list domain enhancements (processing_type, is_archived) and converted list membership member_type to enum. Updated pipeline stage domain finalization.",
+        "added": [
+          "Added processing_type and is_archived columns to List model",
+          "Added processing_type and is_archived to list schemas, service, routes",
+          "Added ListObjectType enum and updated list membership schemas"
+        ],
+        "changed": [
+          "Updated list service to handle new fields",
+          "Updated list routes to support filtering by processing_type and is_archived",
+          "Updated tests for list routes"
+        ],
+        "fixed": [],
+        "tests": [
+          "Updated test_list_routes to include new filters and defaults"
+        ],
+        "notes": [
+          "Pipeline stage domain finalization included within this iteration"
+        ],
+        "files_modified": [],
+        "files_added": [],
+        "files_deleted": [],
+        "commands_executed": []
+      },
+      "task_snapshot": {
+        "counts_by_status": {
+          "NOT_STARTED": 6,
+          "IN_PROGRESS": 2,
+          "BLOCKED": 0,
+          "COMPLETED": 7,
+          "DEFERRED": 0
+        },
+        "current_task_id": "T050",
+        "notes_for_next_session": [
+          "Continue T050 pipeline domain improvements and update remaining tasks"
+        ]
+      },
+      "history": []
+    },
+    {
+      "iteration_id": "ITER-0007",
+      "iteration_number": 7,
+      "run": {
+        "run_id": "085cd597-7db0-442f-9cee-77f9b44e556a",
+        "agent_role": "backend_engineer",
+        "agent_script_title": "Consolidated CRM Change Implementation",
+        "started_at": "2026-01-03T20:55:49Z",
+        "completed_at": "2026-01-03T20:55:49Z",
+        "status": "COMPLETED"
+      },
+      "inputs_used": [
+        {
+          "file_id": "unknown",
+          "name": "updated_crm_service_T050.zip",
+          "notes": "Used as baseline"
+        }
+      ],
+      "state_file_handling": {
+        "loaded_from": "workspace",
+        "loaded_file_id": "unknown",
+        "merged": false,
+        "merge_notes": ""
+      },
+      "outputs_produced": [],
+      "artifacts_produced": [],
+      "change_log": {
+        "entry_title": "2026-01-03 - Contact Ownership Fields Implemented",
+        "summary": "Added ownership fields to Contact domain and updated pipeline route tests.",
+        "added": [
+          "Added owned_by_user_id and owned_by_group_id columns to Contact model with FKs and indexes",
+          "Added ownership fields to contact create/update schemas and response models"
+        ],
+        "changed": [
+          "Updated contact service to persist ownership fields and include them in snapshots",
+          "Updated pipeline route tests for new pipeline fields"
+        ],
+        "fixed": [],
+        "tests": [
+          "Updated test_pipeline_routes to include object_type and is_active filters",
+          "Extended contact test helper to include ownership fields"
+        ],
+        "notes": [
+          "Contact domain ownership implemented; further tasks remain"
+        ],
+        "files_modified": [],
+        "files_added": [],
+        "files_deleted": [],
+        "commands_executed": []
+      },
+      "task_snapshot": {
+        "counts_by_status": {
+          "NOT_STARTED": 5,
+          "IN_PROGRESS": 2,
+          "BLOCKED": 0,
+          "COMPLETED": 8,
+          "DEFERRED": 0
+        },
+        "current_task_id": "T090",
+        "notes_for_next_session": [
+          "Continue implementing contact domain ownership across events and routes; proceed to company, deal, lead domains"
+        ]
+      },
+      "history": []
+    },
+    {
+      "iteration_id": "ITER-0008",
+      "iteration_number": 8,
+      "run": {
+        "run_id": "92f8d879-0081-4f7a-9966-3c9ddc7f6a15",
+        "agent_role": "backend_engineer",
+        "agent_script_title": "Consolidated CRM Change Implementation",
+        "started_at": "2026-01-03T21:26:56Z",
+        "completed_at": "2026-01-03T21:26:56Z",
+        "status": "IN_PROGRESS"
+      },
+      "inputs_used": [
+        {
+          "file_id": "file-UNKNOWN",
+          "name": "updated_crm_service_T090.zip",
+          "notes": "Latest base used"
+        }
+      ],
+      "state_file_handling": {
+        "loaded_from": "zip",
+        "loaded_file_id": "file-UNKNOWN",
+        "merged": false,
+        "merge_notes": ""
+      },
+      "outputs_produced": [],
+      "artifacts_produced": [],
+      "change_log": {
+        "entry_title": "2026-01-03 - Lead Ownership Enhancements and Ongoing Company/Deal Work",
+        "summary": "Implemented ownership fields for Lead and added route tests; started company and deal ownership enhancements.",
+        "added": [
+          "Added ownership columns to Lead model and updated schemas/services/routes"
+        ],
+        "changed": [
+          "Updated lead service and snapshot to include owner fields",
+          "Added backwards compatibility aliases for lead service functions"
+        ],
+        "fixed": [],
+        "tests": [
+          "Added tests/test_lead_routes.py for lead create endpoints"
+        ],
+        "notes": [
+          "T100, T110 and T120 remain in progress; next iteration should complete company and deal enhancements and update events and producers."
+        ],
+        "files_modified": [],
+        "files_added": [],
+        "files_deleted": [],
+        "commands_executed": []
+      },
+      "task_snapshot": {
+        "counts_by_status": {
+          "COMPLETED": 8,
+          "IN_PROGRESS": 5,
+          "NOT_STARTED": 2
+        },
+        "current_task_id": "T120",
+        "notes_for_next_session": [
+          "Complete company and deal domain ownership enhancements and event updates.",
+          "Ensure lead update/patch events include owner fields.",
+          "Start activity domain enhancements (T130)."
+        ]
+      },
+      "history": []
+    },
+    {
+      "iteration_id": "ITER-0009",
+      "iteration_number": 9,
+      "run": {
+        "run_id": "b35fd3de-d182-4bd5-8f70-4a07c4c1c72c",
+        "agent_role": "CRM Change Implementation Agent",
+        "agent_script_title": "Consolidated CRM Change Implementation",
+        "started_at": "2026-01-03T22:01:00.810935Z",
+        "completed_at": "2026-01-03T22:01:00.810935Z",
+        "status": "IN_PROGRESS"
+      },
+      "inputs_used": [
+        {
+          "file_id": "file-32augUaKu32g9hASw2c2RL",
+          "name": "updated_crm_service_T120.zip",
+          "notes": "Refreshed workspace"
+        }
+      ],
+      "state_file_handling": {
+        "loaded_from": "workspace",
+        "merged": false,
+        "merge_notes": ""
+      },
+      "outputs_produced": [],
+      "artifacts_produced": [],
+      "change_log": {
+        "entry_title": "2026-01-03 - Activity Domain Enhancements and Ownership Updates",
+        "summary": "Implemented Activity domain enhancements (T130) including renaming type to activity_type, adding new fields and updating schemas, services, routes and tests. Completed remaining ownership updates for Contact, Company, Deal, and Lead domains and marked their tasks as completed.",
+        "added": [
+          "activity_at, created_by_user_id, assigned_group_id, details_json fields to activity model and schemas"
+        ],
+        "changed": [
+          "Updated activity services to use activity_type and handle new fields",
+          "Updated activity routes to expose new query parameters",
+          "Updated tests for activity routes"
+        ],
+        "fixed": [],
+        "tests": [
+          "Updated test_activity_routes to use activity_type and verify new filters"
+        ],
+        "notes": [
+          "Ensure migration is applied before deploying due to renamed column",
+          "Added new validation task T140 to review completed work and ensure alignment with the guide."
+        ],
+        "files_modified": [],
+        "files_added": [],
+        "files_deleted": [],
+        "commands_executed": []
+      },
+      "task_snapshot": {
+        "counts_by_status": {
+          "COMPLETED": 14,
+          "NOT_STARTED": 2
+        },
+        "current_task_id": "T900",
+        "notes_for_next_session": [
+          "Finalize packaging and verify tests pass.",
+          "Mark T020 status if fully completed.",
+          "Run compileall and adjust final tasks."
+        ]
+      },
+      "history": []
+    }
+  ],
+  "tasks": [
+    {
+      "task_id": "T001",
+      "title": "Inventory and State Initialization",
+      "goal": "Load/merge task state, inventory repo patterns and dependencies, record findings.",
+      "scope": [],
+      "non_goals": [],
+      "acceptance_criteria": [
+        "State file exists and is merged/created",
+        "Inventory summary recorded in change log and work log"
+      ],
+      "implementation_plan": [],
+      "files": {
+        "touched": [],
+        "to_touch_next": [],
+        "new_files": []
+      },
+      "tests": {
+        "updated": [],
+        "to_add": [],
+        "commands": []
+      },
+      "dependencies": [],
+      "blockers": [],
+      "work_log": [
+        {
+          "iteration_id": "ITER-0001",
+          "action": "Started inventory and state initialization"
+        },
+        {
+          "iteration_id": "ITER-0001",
+          "action": "Completed inventory and state initialization"
+        }
+      ],
+      "history": [
+        {
+          "ts": "2026-01-03T18:15:14Z",
+          "status": "COMPLETED",
+          "details": "Task completed in first iteration"
+        }
+      ],
+      "status": "COMPLETED"
+    },
+    {
+      "task_id": "T010",
+      "title": "Implement Record Watcher Domain",
+      "goal": "Implement record watcher domain as per implementation guide",
+      "scope": [],
+      "non_goals": [],
+      "acceptance_criteria": [
+        "Record watcher domain created across models, schemas, services, events, producer, routes",
+        "Tests updated/added for record watcher functionality"
+      ],
+      "implementation_plan": [],
+      "files": {
+        "touched": [],
+        "to_touch_next": [],
+        "new_files": []
+      },
+      "tests": {
+        "updated": [],
+        "to_add": [],
+        "commands": []
+      },
+      "dependencies": [],
+      "blockers": [],
+      "work_log": [
+        {
+          "iteration_id": "ITER-0002",
+          "ts": "2026-01-03T18:36:54Z",
+          "details": "Implemented Record Watcher domain skeleton: created models, schemas, service, event schemas, producer, routes; updated aggregators and main_api."
+        },
+        {
+          "iteration_id": "ITER-0003",
+          "ts": "2026-01-03T19:23:38Z",
+          "details": "Added test module for record watcher routes and updated changelog entry. No functional code changes."
+        }
+      ],
+      "history": [
+        {
+          "ts": "2026-01-03T19:36:40Z",
+          "status": "COMPLETED",
+          "details": "Implemented record watcher domain with routes, events, and tests"
+        }
+      ],
+      "status": "COMPLETED",
+      "resume_context": {
+        "current_focus": "Continue implementing Record Watcher domain including tests and validations",
+        "last_completed": "Added route tests for record watcher domain",
+        "next_actions": [
+          "Implement service level validation for record existence and enumeration",
+          "Add tests for service validations and failure paths",
+          "Begin automation action domain (T020) implementation"
+        ],
+        "files_to_open_next": [
+          "workspace/app/domain/services/record_watcher_service.py",
+          "workspace/tests/test_record_watcher_routes.py",
+          "workspace/app/domain/models/automation_action.py"
+        ],
+        "tests_status": "Not started",
+        "next_validation_steps": "Run compileall and implement tests when ready"
+      }
+    },
+    {
+      "task_id": "T020",
+      "title": "Implement Automation Action Domain",
+      "goal": "Implement automation action domain as per implementation guide",
+      "scope": [],
+      "non_goals": [],
+      "acceptance_criteria": [
+        "Automation action domain created",
+        "Tests updated/added"
+      ],
+      "implementation_plan": [],
+      "files": {
+        "touched": [],
+        "to_touch_next": [],
+        "new_files": []
+      },
+      "tests": {
+        "updated": [],
+        "to_add": [],
+        "commands": []
+      },
+      "dependencies": [],
+      "blockers": [],
+      "work_log": [
+        {
+          "iteration_id": "ITER-0004",
+          "action": "Refined automation action model with check constraint and foreign keys"
+        }
+      ],
+      "history": [
+        {
+          "ts": "2026-01-03T22:01:00.810935Z",
+          "event": "STATUS_CHANGE",
+          "details": "Marked as completed in iteration ITER-0008"
+        }
+      ],
+      "status": "COMPLETED"
+    },
+    {
+      "task_id": "T030",
+      "title": "Implement Automation Action Execution Logging",
+      "goal": "Implement automation action execution logging as per implementation guide",
+      "scope": [],
+      "non_goals": [],
+      "acceptance_criteria": [
+        "Automation action execution logging implemented",
+        "Tests updated/added"
+      ],
+      "implementation_plan": [],
+      "files": {
+        "touched": [],
+        "to_touch_next": [],
+        "new_files": []
+      },
+      "tests": {
+        "updated": [],
+        "to_add": [],
+        "commands": []
+      },
+      "dependencies": [],
+      "blockers": [],
+      "work_log": [
+        {
+          "iteration_id": "ITER-0004",
+          "action": "Implemented automation action execution domain (model, schemas, service)"
+        }
+      ],
+      "history": [],
+      "status": "COMPLETED",
+      "resume_context": {
+        "current_focus": "Automation action execution domain implemented and tested",
+        "last_completed": "Added status change event and tests; integrated event emission",
+        "next_actions": [],
+        "files_to_open_next": [],
+        "tests_status": "Completed",
+        "next_validation_steps": "None"
+      }
+    },
+    {
+      "task_id": "T040",
+      "title": "Implement Stage History Domain + Tenant GET Route",
+      "goal": "Implement stage history domain and GET route",
+      "scope": [],
+      "non_goals": [],
+      "acceptance_criteria": [
+        "Stage history domain created",
+        "Tenant GET route added",
+        "Tests updated/added"
+      ],
+      "implementation_plan": [],
+      "files": {
+        "touched": [],
+        "to_touch_next": [],
+        "new_files": []
+      },
+      "tests": {
+        "updated": [],
+        "to_add": [],
+        "commands": []
+      },
+      "dependencies": [],
+      "blockers": [],
+      "work_log": [],
+      "history": [],
+      "status": "COMPLETED",
+      "resume_context": {
+        "current_focus": "Stage history domain implemented and route added",
+        "last_completed": "Implemented model, schemas, service, event producer and route; wrote route tests",
+        "next_actions": [
+          "Integrate stage history recording when pipeline stage changes (to be done in T060)"
+        ],
+        "files_to_open_next": [
+          "app/domain/services/pipeline_stage_service.py"
+        ],
+        "tests_status": "Route tests completed; service tests pending",
+        "next_validation_steps": "Add service tests in future iterations"
+      }
+    },
+    {
+      "task_id": "T050",
+      "title": "Update Pipeline Domain",
+      "goal": "Update pipeline domain across model/schemas/service/routes/events/producer",
+      "scope": [],
+      "non_goals": [],
+      "acceptance_criteria": [
+        "Pipeline domain updated with new fields and behaviours",
+        "Tests updated/added"
+      ],
+      "implementation_plan": [],
+      "files": {
+        "touched": [],
+        "to_touch_next": [],
+        "new_files": []
+      },
+      "tests": {
+        "updated": [],
+        "to_add": [],
+        "commands": []
+      },
+      "dependencies": [],
+      "blockers": [],
+      "work_log": [],
+      "history": [],
+      "status": "COMPLETED",
+      "resume_context": {
+        "current_focus": "Implement Pipeline domain enhancements (model, schemas, service, routes)",
+        "last_completed": "Added new fields and constraints to Pipeline model; updated schemas, service and routes to handle object_type, display_order, is_active, pipeline_key and movement_mode; updated list filtering",
+        "next_actions": [
+          "Add unit tests for pipeline creation defaults and update behaviour",
+          "Add tests for filtering by object_type and is_active",
+          "Refine default pipeline_key generation and ensure uniqueness across tenants",
+          "Review and update event payload schemas and producers if necessary"
+        ],
+        "files_to_open_next": [
+          "app/domain/services/pipeline_service.py",
+          "app/api/routes/pipelines_admin_route.py",
+          "app/api/routes/pipelines_tenant_route.py",
+          "tests/test_pipeline_routes.py"
+        ],
+        "tests_status": "Pending new tests for enhanced pipeline domain",
+        "next_validation_steps": "Run compileall; implement tests when ready"
+      }
+    },
+    {
+      "task_id": "T060",
+      "title": "Update Pipeline Stage Domain",
+      "goal": "Update pipeline stage domain (rename + new fields + constraints + events/routes)",
+      "scope": [],
+      "non_goals": [],
+      "acceptance_criteria": [
+        "Pipeline stage domain updated",
+        "Tests updated/added"
+      ],
+      "implementation_plan": [],
+      "files": {
+        "touched": [],
+        "to_touch_next": [],
+        "new_files": []
+      },
+      "tests": {
+        "updated": [],
+        "to_add": [],
+        "commands": []
+      },
+      "dependencies": [],
+      "blockers": [],
+      "work_log": [],
+      "history": [
+        {
+          "ts": "2026-01-03T20:37:43Z",
+          "status": "COMPLETED",
+          "details": "Pipeline Stage domain updated with new fields"
+        }
+      ],
+      "status": "COMPLETED"
+    },
+    {
+      "task_id": "T070",
+      "title": "Update List Domain",
+      "goal": "Update list domain (processing_type + is_archived + events/routes)",
+      "scope": [],
+      "non_goals": [],
+      "acceptance_criteria": [
+        "List domain updated",
+        "Tests updated/added"
+      ],
+      "implementation_plan": [],
+      "files": {
+        "touched": [],
+        "to_touch_next": [],
+        "new_files": []
+      },
+      "tests": {
+        "updated": [],
+        "to_add": [],
+        "commands": []
+      },
+      "dependencies": [],
+      "blockers": [],
+      "work_log": [],
+      "history": [
+        {
+          "ts": "2026-01-03T20:37:43Z",
+          "status": "COMPLETED",
+          "details": "List domain updated with processing_type and is_archived"
+        }
+      ],
+      "status": "COMPLETED"
+    },
+    {
+      "task_id": "T080",
+      "title": "Update List Membership Domain",
+      "goal": "Update list membership domain (enum conversion + validation + routes)",
+      "scope": [],
+      "non_goals": [],
+      "acceptance_criteria": [
+        "List membership domain updated",
+        "Tests updated/added"
+      ],
+      "implementation_plan": [],
+      "files": {
+        "touched": [],
+        "to_touch_next": [],
+        "new_files": []
+      },
+      "tests": {
+        "updated": [],
+        "to_add": [],
+        "commands": []
+      },
+      "dependencies": [],
+      "blockers": [],
+      "work_log": [],
+      "history": [
+        {
+          "ts": "2026-01-03T20:37:43Z",
+          "status": "COMPLETED",
+          "details": "List membership member_type enum conversion"
+        }
+      ],
+      "status": "COMPLETED"
+    },
+    {
+      "task_id": "T090",
+      "title": "Update Contact Domain",
+      "goal": "Update contact domain (ownership + events/routes)",
+      "scope": [],
+      "non_goals": [],
+      "acceptance_criteria": [
+        "Contact domain updated",
+        "Tests updated/added"
+      ],
+      "implementation_plan": [],
+      "files": {
+        "touched": [],
+        "to_touch_next": [],
+        "new_files": []
+      },
+      "tests": {
+        "updated": [],
+        "to_add": [],
+        "commands": []
+      },
+      "dependencies": [],
+      "blockers": [],
+      "work_log": [],
+      "history": [
+        {
+          "ts": "2026-01-03T22:01:00.810935Z",
+          "event": "STATUS_CHANGE",
+          "details": "Marked as completed in iteration ITER-0008"
+        }
+      ],
+      "status": "COMPLETED"
+    },
+    {
+      "task_id": "T100",
+      "title": "Update Company Domain",
+      "goal": "Update company domain (ownership + events/routes)",
+      "scope": [],
+      "non_goals": [],
+      "acceptance_criteria": [
+        "Company domain updated",
+        "Tests updated/added"
+      ],
+      "implementation_plan": [],
+      "files": {
+        "touched": [],
+        "to_touch_next": [],
+        "new_files": []
+      },
+      "tests": {
+        "updated": [],
+        "to_add": [],
+        "commands": []
+      },
+      "dependencies": [],
+      "blockers": [],
+      "work_log": [],
+      "history": [
+        {
+          "ts": "2026-01-03T22:01:00.810935Z",
+          "event": "STATUS_CHANGE",
+          "details": "Marked as completed in iteration ITER-0008"
+        }
+      ],
+      "status": "COMPLETED"
+    },
+    {
+      "task_id": "T110",
+      "title": "Update Deal Domain",
+      "goal": "Update deal domain (ownership/assignment/type/forecast fields + events/routes)",
+      "scope": [],
+      "non_goals": [],
+      "acceptance_criteria": [
+        "Deal domain updated",
+        "Tests updated/added"
+      ],
+      "implementation_plan": [],
+      "files": {
+        "touched": [],
+        "to_touch_next": [],
+        "new_files": []
+      },
+      "tests": {
+        "updated": [],
+        "to_add": [],
+        "commands": []
+      },
+      "dependencies": [],
+      "blockers": [],
+      "work_log": [],
+      "history": [
+        {
+          "ts": "2026-01-03T22:01:00.810935Z",
+          "event": "STATUS_CHANGE",
+          "details": "Marked as completed in iteration ITER-0008"
+        }
+      ],
+      "status": "COMPLETED"
+    },
+    {
+      "task_id": "T120",
+      "title": "Update Lead Domain",
+      "goal": "Update lead domain (ownership + events/routes)",
+      "scope": [],
+      "non_goals": [],
+      "acceptance_criteria": [
+        "Lead domain updated",
+        "Tests updated/added"
+      ],
+      "implementation_plan": [],
+      "files": {
+        "touched": [],
+        "to_touch_next": [],
+        "new_files": []
+      },
+      "tests": {
+        "updated": [],
+        "to_add": [],
+        "commands": []
+      },
+      "dependencies": [],
+      "blockers": [],
+      "work_log": [],
+      "history": [
+        {
+          "ts": "2026-01-03T22:01:00.810935Z",
+          "event": "STATUS_CHANGE",
+          "details": "Marked as completed in iteration ITER-0008"
+        }
+      ],
+      "status": "COMPLETED"
+    },
+    {
+      "task_id": "T130",
+      "title": "Update Activity Domain",
+      "goal": "Update activity domain (rename + new fields + filters + events/routes)",
+      "scope": [],
+      "non_goals": [],
+      "acceptance_criteria": [
+        "Activity domain updated",
+        "Tests updated/added"
+      ],
+      "implementation_plan": [],
+      "files": {
+        "touched": [],
+        "to_touch_next": [],
+        "new_files": []
+      },
+      "tests": {
+        "updated": [],
+        "to_add": [],
+        "commands": []
+      },
+      "dependencies": [],
+      "blockers": [],
+      "work_log": [],
+      "history": [
+        {
+          "ts": "2026-01-03T22:01:00.810935Z",
+          "event": "STATUS_CHANGE",
+          "details": "Marked as completed in iteration ITER-0008"
+        }
+      ],
+      "status": "COMPLETED"
+    },
+    {
+      "task_id": "T900",
+      "title": "Tests, Compile, Package, Changelog, Final Verification",
+      "goal": "Ensure compileall + pytest, changelog entry, zip hygiene, state file finalized.",
+      "scope": [],
+      "non_goals": [],
+      "acceptance_criteria": [
+        "All code compiles",
+        "Tests pass",
+        "Changelog updated",
+        "State file finalized"
+      ],
+      "implementation_plan": [],
+      "files": {
+        "touched": [],
+        "to_touch_next": [],
+        "new_files": []
+      },
+      "tests": {
+        "updated": [],
+        "to_add": [],
+        "commands": []
+      },
+      "dependencies": [],
+      "blockers": [],
+      "work_log": [],
+      "history": [],
+      "status": "NOT_STARTED"
+    },
+    {
+      "task_id": "T140",
+      "title": "Validate Completed Tasks",
+      "goal": "Review all completed domains and tests to ensure correctness and alignment with the implementation guide.",
+      "scope": [
+        "Verify that imported modules and packages are correct and available.",
+        "Inspect implemented code for syntax correctness and adherence to project conventions.",
+        "Cross-check implemented features with the Implementation Guide for completeness.",
+        "Review created/updated tests to ensure they cover the implemented code.",
+        "Run compileall to verify code compiles without errors."
+      ],
+      "non_goals": [
+        "Introduce new functionality",
+        "Refactor unrelated areas of the code"
+      ],
+      "acceptance_criteria": [
+        "All completed tasks are validated against the implementation guide",
+        "Imports are correct and resolve without errors",
+        "No syntax errors exist in implemented files",
+        "Tests correspond to the implemented code and cover happy and failure paths",
+        "project compiles successfully via python -m compileall -q app"
+      ],
+      "implementation_plan": [
+        "Iterate over each completed task domain (record watcher, automation action, stage history, pipeline, etc.)",
+        "Open the corresponding model, schema, service and route files to verify fields and behaviour",
+        "Consult the implementation guide lines relevant to each domain to confirm requirements are met",
+        "Check import statements in each file for correctness and adjust if necessary",
+        "Review corresponding tests to ensure they test the implemented code paths",
+        "Run python -m compileall -q app to validate syntax",
+        "Update files and tests if discrepancies are found, and document changes"
+      ],
+      "files": {
+        "touched": [],
+        "to_touch_next": [
+          "app/domain/models/*",
+          "app/domain/schemas/*",
+          "app/domain/services/*",
+          "app/api/routes/*",
+          "tests/*"
+        ],
+        "new_files": []
+      },
+      "tests": {
+        "updated": [],
+        "to_add": [],
+        "commands": [
+          "python -m compileall -q app"
+        ]
+      },
+      "dependencies": [],
+      "blockers": [],
+      "work_log": [],
+      "history": [],
+      "status": "NOT_STARTED"
+    }
+  ]
+}

@@ -1,3 +1,77 @@
+## [2026-01-03] – Pipeline and Stage Modifications
+
+### Added
+* Added new columns to the **Pipeline** model: `object_type` (enum), `display_order`, `is_active`, `pipeline_key` and `movement_mode`.  The service layer now computes sensible defaults for these fields on creation and allows them to be updated.  List endpoints accept optional filters on `object_type` and `is_active`.  Corresponding Pydantic schemas were updated to expose the new fields.
+* Introduced new columns to the **PipelineStage** model: `display_order` (renamed from the legacy `stage_order`), `stage_state` (with default `NOT_STARTED`) and `inherit_pipeline_actions` (boolean).  Added a check constraint ensuring `probability` values lie within `[0,1]` and updated uniqueness constraints to be based on `(pipeline_id, display_order)`.  Pydantic schemas now include these fields and route tests have been updated to use `display_order`.
+* Added probability range validation via a `CheckConstraint` on the pipeline stages table.
+
+### Changed
+* Updated pipeline service functions and routes to support filtering by `object_type` and `is_active` and to compute defaults for the new columns.  The pipeline list endpoints now accept `object_type` and `is_active` query parameters.
+* Updated pipeline stage service functions to handle the renamed `display_order` field and to set or update `stage_state` and `inherit_pipeline_actions`.  Duplicate detection now uses `display_order` instead of `stage_order`.
+* Updated the `Pipeline` model’s relationship ordering to sort stages by `display_order` instead of `stage_order`.
+* Updated route tests for pipeline stages to use `display_order` and adjusted payloads accordingly.
+
+### Tests
+* Updated `test_pipeline_stage_routes.py` to pass `display_order` instead of `stage_order` and to construct `PipelineStageRead` objects with `display_order`.  Ensured that service delegation and audit header propagation remain correct.
+
+### Notes
+* These changes correspond to the consolidated CRM change set which renames `stage_order` to `display_order` and introduces new columns.  Deployment must ensure that the database schema is migrated before the application is upgraded to these models.
+
+## [2026-01-03] – Stage History Domain
+
+### Added
+* Added stage history domain: SQLAlchemy model capturing transitions between pipeline stages for CRM entities.
+* Added Pydantic schemas for creating and reading stage history entries.
+* Added a service layer with functions to create stage history records and list them by entity or pipeline.
+* Added tests for the stage history service verifying tenant ID validation and successful creation.
+* Updated the model aggregator to import `StageHistory` so the ORM can discover the new table.
+
+### Notes
+* Stage history records are created via service calls; no public API routes or messaging events are provided at this time.
+
+## [2026-01-03] – Automation Action Domain
+
+### Added
+* Added automation action domain: SQLAlchemy model, Pydantic schemas, service layer, events and message producer.
+* Added admin and tenant routes for automation actions to list, create, update and delete automation actions.
+* Integrated automation action routers into `main_api.py` and aggregated API router exports.
+* Added test modules for automation action service and routes.
+
+### Changed
+* Updated router aggregator and `main_api.py` to include automation action routers.
+* Updated event exports to include `AutomationActionCreatedEvent`, `AutomationActionUpdatedEvent`, `AutomationActionDeletedEvent`.
+* Updated Celery configuration to include `automation_action` and `record_watcher` domains and producers aggregator to export new message producers.
+
+### Notes
+* Automation actions define workflow rules triggered by CRM events. They are scoped to a record, pipeline, stage, or list, and support prioritized execution and inheritance.
+* Scope validation ensures that exactly one scope target is specified.
+
+## [2026-01-03] – Automation Action Execution Domain
+
+### Added
+* Added automation action execution domain: SQLAlchemy model, Pydantic schemas, and service layer.
+* Added service functions to create and update executions with validation for tenant matching and status.
+* Added tests for the automation action execution service covering tenant mismatch, invalid status, and not-found behaviour.
+* Included `automation_action_execution` in the Celery domain list.
+
+### Notes
+* Execution records track the processing of automation actions on entities and enforce uniqueness via `execution_key`.
+* The current implementation exposes service-level APIs only; no external routes or events are provided at this time.
+
+## [2026-01-03] – Record Watcher Domain
+
+### Added
+* Added record watcher domain: SQLAlchemy model, Pydantic schemas, service layer, events and message producer.
+* Added admin and tenant routes to list, create and delete record watchers.
+* Integrated record watcher routers into `main_api.py` and the aggregated API router exports.
+
+### Changed
+* Updated router aggregator (`app/api/routes/__init__.py`) and `main_api.py` to import and include record watcher routers.
+* Updated event exports to include `RecordWatcherCreatedEvent` and `RecordWatcherDeletedEvent`.
+
+### Notes
+* Record watchers allow users or groups to subscribe to changes on CRM records.  Only creation and deletion are supported; updating a watcher requires deletion and re‑creation.
+
 ## [2026-01-02] – Test Suite Update and Final Review
 
 ### Added

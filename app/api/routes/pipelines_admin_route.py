@@ -38,18 +38,26 @@ def list_pipelines(
     name: Optional[str] = Query(
         None, description="Filter pipelines by name (case‑insensitive substring match)"
     ),
+    object_type: Optional[str] = Query(
+        None, description="Filter pipelines by object type (e.g., DEAL, TICKET)"
+    ),
+    is_active: Optional[bool] = Query(
+        None, description="Filter by pipeline active status"
+    ),
     limit: Optional[int] = Query(None, ge=1, description="Maximum number of pipelines to return"),
     offset: Optional[int] = Query(None, ge=0, description="Number of pipelines to skip"),
     db: Session = Depends(get_db),
 ) -> schemas.PaginationEnvelope[schemas.PipelineRead]:
     """List pipelines (admin context).
 
-    Allows optional filtering by tenant and name, and supports pagination.
+    Allows optional filtering by tenant, name, object type and active status, and supports pagination.
     """
     items, total = pipeline_service.service_list_pipelines(
         db,
         tenant_id=tenant_id,
         name=name,
+        object_type=object_type,
+        is_active=is_active,
         limit=limit,
         offset=offset,
     )

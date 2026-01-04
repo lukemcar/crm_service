@@ -60,6 +60,10 @@ from .kb_section import KbSection
 from .kb_article import KbArticle
 from .kb_article_revision import KbArticleRevision
 from .kb_article_feedback import KbArticleFeedback
+from .record_watcher import RecordWatcher
+from .automation_action import AutomationAction
+from .automation_action_execution import AutomationActionExecution
+from .stage_history import StageHistory
 
 __all__ = [
     "Lead",
@@ -116,4 +120,8 @@ __all__ = [
     "KbArticle",
     "KbArticleRevision",
     "KbArticleFeedback",
+    "RecordWatcher",
+    "AutomationAction",
+    "AutomationActionExecution",
+    "StageHistory",
 ]

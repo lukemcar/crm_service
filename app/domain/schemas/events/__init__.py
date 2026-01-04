@@ -60,6 +60,15 @@ from .association_event import (
     AssociationCreatedMessage,
     AssociationDeletedMessage,
 )
+from .record_watcher_event import (
+    RecordWatcherCreatedEvent,
+    RecordWatcherDeletedEvent,
+)
+from .automation_action_event import (
+    AutomationActionCreatedEvent,
+    AutomationActionUpdatedEvent,
+    AutomationActionDeletedEvent,
+)
 
 __all__ = [
     # Common envelope
@@ -107,4 +116,11 @@ __all__ = [
     "AssociationBaseMessage",
     "AssociationCreatedMessage",
     "AssociationDeletedMessage",
+    # Record watchers
+    "RecordWatcherCreatedEvent",
+    "RecordWatcherDeletedEvent",
+    # Automation actions
+    "AutomationActionCreatedEvent",
+    "AutomationActionUpdatedEvent",
+    "AutomationActionDeletedEvent",
 ]

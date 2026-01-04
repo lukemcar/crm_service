@@ -78,7 +78,7 @@ def _fake_stage_read(
     stage_id: uuid.UUID,
     pipeline_id: uuid.UUID,
     name: str = "Stage",
-    stage_order: int = 1,
+    display_order: int = 1,
     probability: float | None = None,
     created_by: str = "tester",
     updated_by: str = "tester",
@@ -89,7 +89,7 @@ def _fake_stage_read(
         id=stage_id,
         pipeline_id=pipeline_id,
         name=name,
-        stage_order=stage_order,
+        display_order=display_order,
         probability=probability,
         created_at=now,
         updated_at=now,
@@ -151,7 +151,7 @@ def test_create_stage_admin_uses_x_user(monkeypatch: pytest.MonkeyPatch) -> None
     payload = PipelineStageCreate(
         pipeline_id=pipeline_id,
         name="New Stage",
-        stage_order=1,
+        display_order=1,
         probability=None,
     )
     fake_stage = _fake_stage_read(
@@ -219,7 +219,7 @@ def test_update_stage_admin_uses_x_user(monkeypatch: pytest.MonkeyPatch) -> None
     pipeline_id = uuid.uuid4()
     stage_id = uuid.uuid4()
     fake_db = DummySession()
-    payload = PipelineStageUpdate(name="Updated Stage", stage_order=2)
+    payload = PipelineStageUpdate(name="Updated Stage", display_order=2)
     fake_stage = _fake_stage_read(
         tenant_id=tenant_id, stage_id=stage_id, pipeline_id=pipeline_id, name=payload.name or "Stage"
     )
@@ -348,7 +348,7 @@ def test_create_stage_tenant_uses_x_user(monkeypatch: pytest.MonkeyPatch) -> Non
     payload = PipelineStageCreate(
         pipeline_id=pipeline_id,
         name="Tenant Stage",
-        stage_order=1,
+        display_order=1,
         probability=None,
     )
     fake_stage = _fake_stage_read(
@@ -432,7 +432,7 @@ def test_update_stage_tenant_uses_x_user(monkeypatch: pytest.MonkeyPatch) -> Non
     pipeline_id = uuid.uuid4()
     stage_id = uuid.uuid4()
     fake_db = DummySession()
-    payload = PipelineStageUpdate(name="Tenant Updated", stage_order=2)
+    payload = PipelineStageUpdate(name="Tenant Updated", display_order=2)
     fake_stage = _fake_stage_read(
         tenant_id=tenant_id,
         stage_id=stage_id,

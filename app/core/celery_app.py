@@ -83,6 +83,11 @@ _domains = [
     "list",
     "list_membership",
     "association",
+    # Added domains for new CRM capabilities
+    "record_watcher",
+    "automation_action",
+    # Domain for automation action executions
+    "automation_action_execution",
 ]
 
 # Start with the default queue for tasks that lack an explicit route.
