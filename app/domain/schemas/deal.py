@@ -20,6 +20,47 @@ class DealBase(BaseModel):
     pipeline_id: UUID
     stage_id: UUID
     probability: Optional[float] = None
+    # Ownership fields
+    owned_by_user_id: Optional[UUID] = Field(
+        default=None,
+        description=(
+            "UUID of the user who owns this deal. If provided, owned_by_group_id must be omitted."
+        ),
+    )
+    owned_by_group_id: Optional[UUID] = Field(
+        default=None,
+        description=(
+            "UUID of the group that owns this deal. If provided, owned_by_user_id must be omitted."
+        ),
+    )
+    # Assignment fields
+    assigned_user_id: Optional[UUID] = Field(
+        default=None,
+        description=(
+            "UUID of the user assigned to this deal. If provided, assigned_group_id must be omitted."
+        ),
+    )
+    assigned_group_id: Optional[UUID] = Field(
+        default=None,
+        description=(
+            "UUID of the group assigned to this deal. If provided, assigned_user_id must be omitted."
+        ),
+    )
+    # Deal categorization and forecasting
+    deal_type: Optional[str] = Field(
+        default=None,
+        description="Type of deal (deal_type enum)"
+    )
+    forecast_probability: Optional[float] = Field(
+        default=None,
+        ge=0.0,
+        le=1.0,
+        description="Forecast probability (0 to 1)"
+    )
+    close_date: Optional[date] = Field(
+        default=None,
+        description="Date when the deal is expected to close"
+    )
 
 
 class DealCreate(DealBase):
@@ -33,6 +74,16 @@ class DealUpdate(BaseModel):
     pipeline_id: Optional[UUID] = None
     stage_id: Optional[UUID] = None
     probability: Optional[float] = None
+    # Ownership fields
+    owned_by_user_id: Optional[UUID] = None
+    owned_by_group_id: Optional[UUID] = None
+    # Assignment fields
+    assigned_user_id: Optional[UUID] = None
+    assigned_group_id: Optional[UUID] = None
+    # Deal categorization and forecasting
+    deal_type: Optional[str] = None
+    forecast_probability: Optional[float] = None
+    close_date: Optional[date] = None
 
 
 class DealRead(DealBase):
@@ -42,6 +93,13 @@ class DealRead(DealBase):
     updated_at: datetime
     created_by: Optional[str] = None
     updated_by: Optional[str] = None
+    owned_by_user_id: Optional[UUID] = None
+    owned_by_group_id: Optional[UUID] = None
+    assigned_user_id: Optional[UUID] = None
+    assigned_group_id: Optional[UUID] = None
+    deal_type: Optional[str] = None
+    forecast_probability: Optional[float] = None
+    close_date: Optional[date] = None
 
     # Configure Pydantic v2 to load from ORM attributes
     model_config = ConfigDict(from_attributes=True)

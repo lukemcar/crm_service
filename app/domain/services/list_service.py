@@ -122,6 +122,8 @@ def service_list_lists(
     name: Optional[str] = None,
     object_type: Optional[str] = None,
     list_type: Optional[str] = None,
+    processing_type: Optional[str] = None,
+    is_archived: Optional[bool] = None,
     limit: Optional[int] = None,
     offset: Optional[int] = None,
 ) -> tuple[list[List], int]:
@@ -162,6 +164,10 @@ def service_list_lists(
         query = query.filter(List.object_type == object_type)
     if list_type:
         query = query.filter(List.list_type == list_type)
+    if processing_type:
+        query = query.filter(List.processing_type == processing_type)
+    if is_archived is not None:
+        query = query.filter(List.is_archived == is_archived)
     total = query.count()
     if limit is not None:
         query = query.limit(limit)
@@ -215,12 +221,26 @@ def service_create_list(
         header.  If not provided, callers should supply a sensible default
         such as ``"anonymous"``.
     """
+    # Derive defaults for new optional fields.  ``getattr`` is used to
+    # gracefully handle older schemas that may not define these attributes.
+    processing_type = (
+        list_in.processing_type
+        if getattr(list_in, "processing_type", None) is not None
+        else "STATIC"
+    )
+    is_archived = (
+        list_in.is_archived
+        if getattr(list_in, "is_archived", None) is not None
+        else False
+    )
     lst = List(
         tenant_id=tenant_id,
         name=list_in.name,
         object_type=list_in.object_type,
         list_type=list_in.list_type,
         filter_definition=list_in.filter_definition,
+        processing_type=processing_type,
+        is_archived=is_archived,
         created_by=created_user,
         updated_by=created_user,
     )
@@ -265,6 +285,12 @@ def service_update_list(
         lst.list_type = list_in.list_type
     if list_in.filter_definition is not None:
         lst.filter_definition = list_in.filter_definition
+    # New optional fields introduced in the consolidated change request
+    # Only update if the attribute exists and a value is provided
+    if getattr(list_in, "processing_type", None) is not None:
+        lst.processing_type = list_in.processing_type
+    if getattr(list_in, "is_archived", None) is not None:
+        lst.is_archived = list_in.is_archived
     lst.updated_by = modified_user
     # Commit and refresh
     commit_or_raise(db, refresh=lst)

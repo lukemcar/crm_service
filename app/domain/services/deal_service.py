@@ -127,6 +127,15 @@ def service_create_deal(
         pipeline_id=deal_in.pipeline_id,
         stage_id=deal_in.stage_id,
         probability=deal_in.probability,
+        # Ownership and assignment fields
+        owned_by_user_id=getattr(deal_in, "owned_by_user_id", None),
+        owned_by_group_id=getattr(deal_in, "owned_by_group_id", None),
+        assigned_user_id=getattr(deal_in, "assigned_user_id", None),
+        assigned_group_id=getattr(deal_in, "assigned_group_id", None),
+        # Deal categorization and forecasting
+        deal_type=getattr(deal_in, "deal_type", None),
+        forecast_probability=getattr(deal_in, "forecast_probability", None),
+        close_date=getattr(deal_in, "close_date", None),
         created_by=created_user,
         updated_by=created_user,
     )
@@ -180,6 +189,23 @@ def service_update_deal(
         deal.stage_id = deal_in.stage_id
     if deal_in.probability is not None:
         deal.probability = deal_in.probability
+    # Update ownership fields
+    if getattr(deal_in, "owned_by_user_id", None) is not None:
+        deal.owned_by_user_id = deal_in.owned_by_user_id
+    if getattr(deal_in, "owned_by_group_id", None) is not None:
+        deal.owned_by_group_id = deal_in.owned_by_group_id
+    # Update assignment fields
+    if getattr(deal_in, "assigned_user_id", None) is not None:
+        deal.assigned_user_id = deal_in.assigned_user_id
+    if getattr(deal_in, "assigned_group_id", None) is not None:
+        deal.assigned_group_id = deal_in.assigned_group_id
+    # Update deal categorization and forecasting
+    if getattr(deal_in, "deal_type", None) is not None:
+        deal.deal_type = deal_in.deal_type
+    if getattr(deal_in, "forecast_probability", None) is not None:
+        deal.forecast_probability = deal_in.forecast_probability
+    if getattr(deal_in, "close_date", None) is not None:
+        deal.close_date = deal_in.close_date
     deal.updated_by = modified_user
     # Commit changes
     commit_or_raise(db)

@@ -100,12 +100,14 @@ from .kb_article_feedback_tenant_route import (
 from .kb_article_feedback_admin_route import (
     router as kb_article_feedback_admin_router,
 )
-
-# Record watcher routers (new domain)
+# Record watcher routers
 from .record_watchers_admin_route import router as record_watchers_admin_router
 from .record_watchers_tenant_route import router as record_watchers_tenant_router
+
+# Automation action routers
 from .automation_actions_admin_route import router as automation_actions_admin_router
 from .automation_actions_tenant_route import router as automation_actions_tenant_router
+from .stage_history_tenant_route import router as stage_history_tenant_router
 
 __all__ = [
     "contact_router",
@@ -183,10 +185,11 @@ __all__ = [
     "kb_article_revisions_admin_router",
     "kb_article_feedback_tenant_router",
     "kb_article_feedback_admin_router",
-    # Record watcher routers
+    # Record watchers
     "record_watchers_admin_router",
     "record_watchers_tenant_router",
-    # Automation action routers
+    # Automation actions
     "automation_actions_admin_router",
     "automation_actions_tenant_router",
+    "stage_history_tenant_router",
 ]

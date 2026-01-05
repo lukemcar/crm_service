@@ -87,7 +87,18 @@ from .deal import DealCreate, DealUpdate, DealRead
 from .activity import ActivityCreate, ActivityUpdate, ActivityRead
 from .list import ListCreate, ListUpdate, ListRead
 from .list_membership import ListMembershipCreate, ListMembershipRead
+from .automation_action import (
+    AutomationActionCreate,
+    AutomationActionUpdate,
+    AutomationActionRead,
+)
+from .automation_action_execution import (
+    AutomationActionExecutionCreate,
+    AutomationActionExecutionRead,
+)
+from .record_watcher import RecordWatcherCreate, RecordWatcherRead
 from .association import AssociationCreate, AssociationRead
+from .stage_history import StageHistoryCreate, StageHistoryRead
 from .tenant_user_shadow import TenantUserShadowOut
 from .tenant_group_shadow import TenantGroupShadowOut
 from .group_profile import (

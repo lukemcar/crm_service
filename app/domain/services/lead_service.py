@@ -135,6 +135,10 @@ def _lead_snapshot(lead: Lead) -> Dict[str, Any]:
         "updated_at": lead.updated_at.isoformat() if lead.updated_at else None,
         "created_by": lead.created_by,
         "updated_by": lead.updated_by,
+        # Include ownership fields in snapshot so downstream consumers can
+        # propagate lead ownership changes.
+        "owned_by_user_id": str(lead.owned_by_user_id) if lead.owned_by_user_id else None,
+        "owned_by_group_id": str(lead.owned_by_group_id) if lead.owned_by_group_id else None,
     }
 
 
@@ -171,6 +175,9 @@ def create_lead(
         last_name=lead_in.last_name,
         source=lead_in.source,
         lead_data=lead_in.lead_data.model_dump() if getattr(lead_in, "lead_data", None) else None,
+        # Ownership fields
+        owned_by_user_id=getattr(lead_in, "owned_by_user_id", None),
+        owned_by_group_id=getattr(lead_in, "owned_by_group_id", None),
         created_by=created_user,
         updated_by=created_user,
     )
@@ -237,6 +244,8 @@ def update_lead(
         "last_name": lead.last_name,
         "source": lead.source,
         "lead_data": copy.deepcopy(lead.lead_data),
+        "owned_by_user_id": lead.owned_by_user_id,
+        "owned_by_group_id": lead.owned_by_group_id,
     }
     # Update fields
     lead.first_name = lead_in.first_name
@@ -246,6 +255,11 @@ def update_lead(
     lead.lead_data = (
         lead_in.lead_data.model_dump() if getattr(lead_in, "lead_data", None) else None
     )
+    # Update ownership fields only if provided (None is considered a valid update to clear)
+    if hasattr(lead_in, "owned_by_user_id"):
+        lead.owned_by_user_id = lead_in.owned_by_user_id
+    if hasattr(lead_in, "owned_by_group_id"):
+        lead.owned_by_group_id = lead_in.owned_by_group_id
     lead.updated_by = modified_user
     lead.updated_at = datetime.utcnow()
     db.add(lead)
@@ -264,6 +278,10 @@ def update_lead(
         changes["source"] = lead.source
     if original["lead_data"] != lead.lead_data:
         changes["lead_data"] = lead.lead_data
+    if original["owned_by_user_id"] != lead.owned_by_user_id:
+        changes["owned_by_user_id"] = str(lead.owned_by_user_id) if lead.owned_by_user_id else None
+    if original["owned_by_group_id"] != lead.owned_by_group_id:
+        changes["owned_by_group_id"] = str(lead.owned_by_group_id) if lead.owned_by_group_id else None
     # Emit update event if changes occurred
     if changes:
         snapshot = _lead_snapshot(lead)
@@ -441,6 +459,8 @@ def patch_lead(
         "last_name": lead.last_name,
         "source": lead.source,
         "lead_data": copy.deepcopy(lead.lead_data),
+        "owned_by_user_id": lead.owned_by_user_id,
+        "owned_by_group_id": lead.owned_by_group_id,
     }
     try:
         for operation in patch_request.operations:
@@ -471,6 +491,10 @@ def patch_lead(
         changes["source"] = lead.source
     if original["lead_data"] != lead.lead_data:
         changes["lead_data"] = lead.lead_data
+    if original["owned_by_user_id"] != lead.owned_by_user_id:
+        changes["owned_by_user_id"] = str(lead.owned_by_user_id) if lead.owned_by_user_id else None
+    if original["owned_by_group_id"] != lead.owned_by_group_id:
+        changes["owned_by_group_id"] = str(lead.owned_by_group_id) if lead.owned_by_group_id else None
     # Emit update event if changes occurred
     if changes:
         snapshot = _lead_snapshot(lead)
@@ -518,3 +542,14 @@ def delete_lead(
             lead.id,
         )
     return None
+
+# ---------------------------------------------------------------------------
+# Backwards compatibility aliases
+#
+# Some API routes import ``lead_service`` and expect ``service_*`` function names.
+# Provide aliases to the canonical CRUD functions to avoid AttributeError.
+service_list_leads = list_leads
+service_create_lead = create_lead
+service_update_lead = update_lead
+service_patch_lead = patch_lead
+service_delete_lead = delete_lead

@@ -1,173 +1,174 @@
 """
-FastAPI router for AutomationAction admin endpoints.
+Admin FastAPI routes for automation actions.
 
-Admin endpoints allow managing automation actions across tenants.  Actions
-may be listed, created, updated and deleted via this API.  Collection
-endpoints are exposed at ``/admin/automation-actions``.  Mutating
-operations require a ``tenant_id`` query parameter to ensure actions are
-always scoped correctly.  Audit fields may be captured via headers,
-although they are not currently stored.
+These endpoints allow administrators to manage automation actions across
+tenants.  Listing supports optional tenant scoping for cross‑tenant
+searches and filtering by entity_type and scope_type.  Create and
+mutation operations require an explicit ``tenant_id`` in the request
+body to ensure that the operation applies within the correct tenant.
+Audit fields are populated from the ``X-User`` header when provided.
 """
 
 from __future__ import annotations
 
-from typing import Optional
+from typing import List, Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Path, Query, Response, status
+from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
 from app.core.db import get_db
-from app.domain import schemas
+from app.domain.services.automation_action_service import (
+    list_automation_actions as service_list_actions,
+    create_automation_action as service_create_action,
+    update_automation_action as service_update_action,
+    get_automation_action as service_get_action,
+    delete_automation_action as service_delete_action,
+)
 from app.domain.schemas.automation_action import (
     AutomationActionCreate,
     AutomationActionUpdate,
     AutomationActionRead,
 )
-from app.domain.services import automation_action_service
+from app.domain.schemas.common import PaginationEnvelope
 
 
-router = APIRouter(prefix="/admin/automation-actions", tags=["automation actions"])
-
-
-@router.get(
-    "/",
-    response_model=schemas.PaginationEnvelope[AutomationActionRead],
+router = APIRouter(
+    prefix="/admin/automation_actions",
+    tags=["AutomationActions"],
 )
-def list_automation_actions(
+
+
+@router.get("/", response_model=PaginationEnvelope[AutomationActionRead])
+def list_automation_actions_admin(
     *,
     tenant_id: Optional[UUID] = Query(
-        None, description="Tenant identifier for scoping; omit to list all tenants"
+        None,
+        description="Optional tenant ID to scope the search to a single tenant",
     ),
     entity_type: Optional[str] = Query(
-        None, description="Filter by entity type (e.g., CONTACT, DEAL)"
+        None, description="Optional filter by entity_type"
     ),
     scope_type: Optional[str] = Query(
-        None, description="Filter by scope type (RECORD, PIPELINE, PIPELINE_STAGE, LIST)"
+        None, description="Optional filter by scope_type"
     ),
-    enabled: Optional[bool] = Query(
-        None, description="Filter by enabled state"
-    ),
-    limit: Optional[int] = Query(None, ge=1, description="Maximum number of actions to return"),
-    offset: Optional[int] = Query(None, ge=0, description="Number of actions to skip"),
+    limit: Optional[int] = None,
+    offset: Optional[int] = None,
     db: Session = Depends(get_db),
-) -> schemas.PaginationEnvelope[AutomationActionRead]:
-    """List automation actions (admin context).
+) -> PaginationEnvelope[AutomationActionRead]:
+    """List or search automation actions across tenants.
 
-    Allows optional filtering by tenant, entity type, scope type and enabled flag.
-    Supports pagination via limit and offset.
+    If ``tenant_id`` is provided, results are scoped to that tenant.
+    Filters perform exact matches on ``entity_type`` and ``scope_type``.  Results are
+    ordered by creation date descending and wrapped in a pagination envelope.  The
+    total matching count is included.
     """
-    if tenant_id is None:
-        # Admin must specify a tenant for listing; listing all tenants is not supported yet
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="tenant_id is required")
-    items, total = automation_action_service.service_list_actions(
+    actions, total = service_list_actions(
         db,
         tenant_id=tenant_id,
         entity_type=entity_type,
         scope_type=scope_type,
-        enabled=enabled,
         limit=limit,
         offset=offset,
     )
-    return schemas.PaginationEnvelope[AutomationActionRead](
+    items: List[AutomationActionRead] = [
+        AutomationActionRead.model_validate(a, from_attributes=True) for a in actions
+    ]
+    return PaginationEnvelope[AutomationActionRead](
         items=items, total=total, limit=limit, offset=offset
     )
 
 
-@router.post(
-    "/",
-    response_model=AutomationActionRead,
-    status_code=status.HTTP_201_CREATED,
-)
-def create_automation_action(
+@router.post("/", response_model=AutomationActionRead, status_code=status.HTTP_201_CREATED)
+def create_automation_action_admin(
     *,
-    tenant_id: UUID = Query(..., description="Tenant identifier for the automation action"),
+    tenant_id: UUID = Query(
+        ..., description="Tenant ID for the automation action to create"
+    ),
     action_in: AutomationActionCreate,
-    x_user_id: Optional[str] = Header(
-        None,
-        alias="X-User-Id",
-        description="Identifier of the user performing the operation",
-    ),
     db: Session = Depends(get_db),
+    x_user: str | None = Query(default=None),
 ) -> AutomationActionRead:
-    """Create a new automation action (admin context)."""
-    # Overwrite tenant_id on the body to prevent cross‑tenant associations
-    action_data = action_in.model_copy(update={"tenant_id": tenant_id})
-    created_by_user: Optional[UUID] = None
-    if x_user_id:
-        try:
-            created_by_user = UUID(x_user_id)
-        except Exception:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid X-User-Id header")
-    action = automation_action_service.service_create_action(
+    """Create a new automation action on behalf of a tenant.
+
+    The ``tenant_id`` query parameter is required to ensure that the action is created
+    within the correct tenant context.  The ``X-User`` header is used for audit
+    purposes; if omitted, audit fields are set to ``"anonymous"``.
+    """
+    created_user = x_user or "anonymous"
+    action = service_create_action(
         db,
         tenant_id=tenant_id,
-        action_in=action_data,
-        created_by_user_id=created_by_user,
+        request=action_in,
+        created_by=created_user,
     )
-    return action
+    return AutomationActionRead.model_validate(action, from_attributes=True)
 
 
-@router.patch(
-    "/{action_id}",
-    response_model=AutomationActionRead,
-)
-def update_automation_action(
+@router.patch("/{action_id}", response_model=AutomationActionRead)
+def update_automation_action_admin(
     *,
-    action_id: UUID = Path(..., description="Automation action identifier"),
-    tenant_id: UUID = Query(..., description="Tenant identifier for the action"),
-    action_in: AutomationActionUpdate,
-    x_user_id: Optional[str] = Header(
-        None,
-        alias="X-User-Id",
-        description="Identifier of the user performing the operation",
+    action_id: UUID,
+    tenant_id: UUID = Query(
+        ..., description="Tenant ID of the automation action to update"
     ),
+    action_update: AutomationActionUpdate,
     db: Session = Depends(get_db),
+    x_user: str | None = Query(default=None),
 ) -> AutomationActionRead:
-    """Update an existing automation action (admin context)."""
-    updated_by_user: Optional[UUID] = None
-    if x_user_id:
-        try:
-            updated_by_user = UUID(x_user_id)
-        except Exception:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid X-User-Id header")
-    action = automation_action_service.service_update_action(
+    """Apply updates to an automation action as an admin.
+
+    The ``tenant_id`` query parameter is required to ensure that the operation applies within the
+    correct tenant.  Only fields provided in the request are updated.
+    """
+    updated_user = x_user or "anonymous"
+    action = service_update_action(
         db,
         tenant_id=tenant_id,
         action_id=action_id,
-        update_in=action_in,
-        updated_by_user_id=updated_by_user,
+        request=action_update,
+        updated_by=updated_user,
     )
-    return action
+    return AutomationActionRead.model_validate(action, from_attributes=True)
 
 
-@router.delete(
-    "/{action_id}",
-    status_code=status.HTTP_204_NO_CONTENT,
-    response_class=Response,
-)
-def delete_automation_action(
+@router.get("/{action_id}", response_model=AutomationActionRead)
+def get_automation_action_admin(
     *,
-    action_id: UUID = Path(..., description="Automation action identifier"),
-    tenant_id: UUID = Query(..., description="Tenant identifier for the action"),
-    x_user_id: Optional[str] = Header(
-        None,
-        alias="X-User-Id",
-        description="Identifier of the user performing the operation",
+    action_id: UUID,
+    tenant_id: UUID = Query(
+        ..., description="Tenant ID of the automation action to retrieve"
     ),
     db: Session = Depends(get_db),
-) -> Response:
-    """Delete an automation action (admin context)."""
-    deleted_by_user: Optional[UUID] = None
-    if x_user_id:
-        try:
-            deleted_by_user = UUID(x_user_id)
-        except Exception:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid X-User-Id header")
-    automation_action_service.service_delete_action(
-        db,
-        tenant_id=tenant_id,
-        action_id=action_id,
-        deleted_by_user_id=deleted_by_user,
-    )
-    return Response(status_code=status.HTTP_204_NO_CONTENT)
+) -> AutomationActionRead:
+    """Retrieve a single automation action across tenants.
+
+    An explicit ``tenant_id`` query parameter is required so that the action can be
+    resolved in the correct tenant context.  Raises 404 if the action does not exist
+    in the tenant.
+    """
+    action = service_get_action(db, tenant_id=tenant_id, action_id=action_id)
+    return AutomationActionRead.model_validate(action, from_attributes=True)
+
+
+@router.delete("/{action_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_automation_action_admin(
+    *,
+    action_id: UUID,
+    tenant_id: UUID = Query(
+        ..., description="Tenant ID of the automation action to delete"
+    ),
+    db: Session = Depends(get_db),
+    x_user: str | None = Query(default=None),
+) -> None:
+    """Delete an automation action as an admin.
+
+    The ``tenant_id`` query parameter is required to ensure that the deletion occurs
+    within the correct tenant.  Returns HTTP 204 on success.  Event publishers do
+    not include user information for deletions.
+    """
+    service_delete_action(db, tenant_id=tenant_id, action_id=action_id)
+    return None
+
+
+__all__ = ["router"]

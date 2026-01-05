@@ -27,7 +27,11 @@ from app.domain.models.pipeline import Pipeline
 from typing import List as TypingList, Dict, Any, Tuple
 
 
-def list_stages(db: Session, tenant_id: uuid.UUID , pipeline_id: uuid.UUID) -> Iterable[PipelineStage]:
+def list_stages(db: Session, tenant_id: uuid.UUID, pipeline_id: uuid.UUID) -> Iterable[PipelineStage]:
+    """Legacy list function retained for backwards compatibility (unused).
+
+    Returns all stages for the given pipeline ordered by display order.
+    """
     return (
         db.query(PipelineStage)
         .filter(PipelineStage.pipeline_id == pipeline_id, PipelineStage.tenant_id == tenant_id)
@@ -85,12 +89,9 @@ def create_stage(
             )   
     stage = PipelineStage(
         pipeline_id=stage_in.pipeline_id,
-        tenant_id=tentant_id,
         name=stage_in.name,
-        display_order=stage_in.display_order,
+        stage_order=stage_in.stage_order,
         probability=stage_in.probability,
-        stage_state=stage_in.stage_state or "NOT_STARTED",
-        inherit_pipeline_actions=stage_in.inherit_pipeline_actions if stage_in.inherit_pipeline_actions is not None else False,
         created_by=user_id,
         updated_by=user_id,
     )
@@ -157,8 +158,9 @@ def service_list_stages(
     """
     List stages for a pipeline with optional pagination.
 
-    Always filters by ``tenant_id`` and ``pipeline_id`` to enforce
-    tenancy isolation.  Returns a tuple of (items, total_count).
+    Stages are ordered by ``display_order`` ascending.  Always filters by
+    ``tenant_id`` and ``pipeline_id`` to enforce tenancy isolation.
+    Returns a tuple of (items, total_count).
     """
     query = (
         db.query(PipelineStage)
@@ -214,13 +216,23 @@ def service_create_stage(
     ).first()
     if not pipeline:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Pipeline not found")
+    # Determine display order: if provided use it, otherwise append to end
+    if stage_in.display_order is not None:
+        display_order = stage_in.display_order
+    else:
+        # Count existing stages in pipeline to assign next order (1‑based)
+        existing_count = db.query(PipelineStage).filter(
+            PipelineStage.pipeline_id == pipeline_id,
+            PipelineStage.tenant_id == tenant_id,
+        ).count()
+        display_order = existing_count + 1
     # Check for duplicate name or order
     existing = db.query(PipelineStage).filter(
         PipelineStage.pipeline_id == pipeline_id,
         PipelineStage.tenant_id == tenant_id,
         or_(
             PipelineStage.name == stage_in.name,
-            PipelineStage.display_order == stage_in.display_order,
+            PipelineStage.display_order == display_order,
         ),
     ).first()
     if existing:
@@ -229,7 +241,7 @@ def service_create_stage(
                 status_code=status.HTTP_409_CONFLICT,
                 detail="A stage with this name already exists in the pipeline.",
             )
-        elif existing.stage_order == stage_in.stage_order:
+        elif existing.display_order == display_order:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail="A stage with this order already exists in the pipeline.",
@@ -238,10 +250,10 @@ def service_create_stage(
         pipeline_id=pipeline_id,
         tenant_id=tenant_id,
         name=stage_in.name,
-        display_order=stage_in.display_order,
+        display_order=display_order,
         probability=stage_in.probability,
         stage_state=stage_in.stage_state or "NOT_STARTED",
-        inherit_pipeline_actions=stage_in.inherit_pipeline_actions if stage_in.inherit_pipeline_actions is not None else False,
+        inherit_pipeline_actions=stage_in.inherit_pipeline_actions if stage_in.inherit_pipeline_actions is not None else True,
         created_by=created_user,
         updated_by=created_user,
     )
@@ -294,7 +306,9 @@ def service_update_stage(
             PipelineStage.tenant_id == tenant_id,
             or_(
                 PipelineStage.name == (stage_in.name if stage_in.name is not None else stage.name),
-                PipelineStage.display_order == (stage_in.display_order if stage_in.display_order is not None else stage.display_order),
+                PipelineStage.display_order == (
+                    stage_in.display_order if stage_in.display_order is not None else stage.display_order
+                ),
             ),
         ).first()
         if duplicate:

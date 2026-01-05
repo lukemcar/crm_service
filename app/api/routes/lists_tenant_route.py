@@ -38,6 +38,12 @@ def list_lists(
     list_type: Optional[str] = Query(
         None, description="Filter by list type (e.g. static, dynamic)"
     ),
+    processing_type: Optional[str] = Query(
+        None, description="Filter by processing type (e.g. STATIC)"
+    ),
+    is_archived: Optional[bool] = Query(
+        None, description="Filter by archived status (true/false)"
+    ),
     limit: Optional[int] = Query(
         None, ge=1, description="Maximum number of lists to return"
     ),
@@ -53,6 +59,8 @@ def list_lists(
         name=name,
         object_type=object_type,
         list_type=list_type,
+        processing_type=processing_type,
+        is_archived=is_archived,
         limit=limit,
         offset=offset,
     )

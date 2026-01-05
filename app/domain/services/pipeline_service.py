@@ -39,37 +39,9 @@ def create_pipeline(
     user_id: Optional[uuid.UUID],
     pipeline_in: PipelineCreate,
 ) -> Pipeline:
-    """Backward‑compatible pipeline creation without event emission.
-
-    This function exists for legacy callers that have not migrated to
-    ``service_create_pipeline``.  It will populate new fields for
-    pipelines using sensible defaults similar to the consolidated change
-    set.  The caller should pass ``object_type`` and other fields in
-    ``pipeline_in`` if available.
-    """
-    # Determine object_type (required for new schema) or default to DEAL
-    object_type = getattr(pipeline_in, "object_type", None) or "DEAL"
-    # Determine display order by counting existing pipelines of the same object type
-    existing_count = (
-        db.query(Pipeline)
-        .filter(Pipeline.tenant_id == tenant_id, Pipeline.object_type == object_type)
-        .count()
-    )
-    display_order = getattr(pipeline_in, "display_order", None) or existing_count + 1
-    is_active = getattr(pipeline_in, "is_active", None)
-    if is_active is None:
-        is_active = True
-    # Generate a stable pipeline_key if not provided
-    pipeline_key = getattr(pipeline_in, "pipeline_key", None) or f"pipeline_{uuid.uuid4().hex[:12]}"
-    movement_mode = getattr(pipeline_in, "movement_mode", None) or "FLEXIBLE"
     pipeline = Pipeline(
         tenant_id=tenant_id,
         name=pipeline_in.name,
-        object_type=object_type,
-        display_order=display_order,
-        is_active=is_active,
-        pipeline_key=pipeline_key,
-        movement_mode=movement_mode,
         created_by=user_id,
         updated_by=user_id,
     )
@@ -85,19 +57,8 @@ def update_pipeline(
     user_id: Optional[uuid.UUID],
     pipeline_in: PipelineUpdate,
 ) -> Pipeline:
-    # Update legacy pipeline fields and new consolidated fields if provided
     if pipeline_in.name is not None:
         pipeline.name = pipeline_in.name
-    if pipeline_in.object_type is not None:
-        pipeline.object_type = pipeline_in.object_type
-    if pipeline_in.display_order is not None:
-        pipeline.display_order = pipeline_in.display_order
-    if pipeline_in.is_active is not None:
-        pipeline.is_active = pipeline_in.is_active
-    if pipeline_in.pipeline_key is not None:
-        pipeline.pipeline_key = pipeline_in.pipeline_key
-    if pipeline_in.movement_mode is not None:
-        pipeline.movement_mode = pipeline_in.movement_mode
     pipeline.updated_by = user_id
     db.commit()
     db.refresh(pipeline)
@@ -139,11 +100,30 @@ def service_list_pipelines(
     """
     List pipelines with optional filtering and pagination.
 
-    If ``tenant_id`` is provided, results are restricted to that tenant.  An optional
-    ``name`` filter performs a case‑insensitive substring match.  Additional filters
-    on ``object_type`` and ``is_active`` allow callers to narrow results to a specific
-    pipeline type or active/inactive pipelines.  Pagination is controlled via ``limit``
-    and ``offset``.  Returns a tuple of (items, total_count).
+    Parameters
+    ----------
+    tenant_id : UUID | None
+        Restricts results to the given tenant if provided.  If omitted
+        (admin context), pipelines across tenants are returned.
+    name : str | None
+        Case‑insensitive substring filter on the pipeline name.
+    object_type : str | None
+        Exact match filter on the pipeline's object type.
+    is_active : bool | None
+        Exact match filter on the pipeline's active state.  If ``None``,
+        both active and inactive pipelines are returned.
+    limit : int | None
+        Maximum number of records to return.  If ``None``, no limit is
+        applied.
+    offset : int | None
+        Number of records to skip from the beginning.  If ``None``, no
+        offset is applied.
+
+    Returns
+    -------
+    (list[``Pipeline``], int)
+        A tuple of the list of ORM instances and the total number of
+        records matching the filters (before pagination).
     """
     query = db.query(Pipeline)
     if tenant_id is not None:
@@ -196,22 +176,35 @@ def service_create_pipeline(
     Create a new pipeline and emit a ``pipeline.created`` event.
 
     The ``created_user`` value populates both the ``created_by`` and
-    ``updated_by`` fields.  The service ensures the database commit
-    succeeds via ``commit_or_raise`` and publishes an event after
-    committing.
+    ``updated_by`` audit fields.  The service applies defaults to
+    optional fields and computes a unique display order and pipeline key
+    when they are not supplied.  After persisting, a snapshot event is
+    published via ``PipelineMessageProducer``.  Messaging failures are
+    swallowed to avoid propagating broker errors upstream.
     """
-    # Determine object_type (required) or default to DEAL
-    object_type = pipeline_in.object_type or "DEAL"
-    # Determine display order by counting existing pipelines with same object type
-    existing_count = (
-        db.query(Pipeline)
-        .filter(Pipeline.tenant_id == tenant_id, Pipeline.object_type == object_type)
-        .count()
-    )
-    display_order = pipeline_in.display_order or (existing_count + 1)
+    # Determine object type (required)
+    object_type = pipeline_in.object_type
+    # Compute display order if not supplied: count existing pipelines in same tenant/object_type
+    if pipeline_in.display_order is not None:
+        display_order = pipeline_in.display_order
+    else:
+        existing_count = (
+            db.query(Pipeline)
+            .filter(Pipeline.tenant_id == tenant_id, Pipeline.object_type == object_type)
+            .count()
+        )
+        # assign next ordinal (1‑based)
+        display_order = existing_count + 1
+    # Determine active state
     is_active = pipeline_in.is_active if pipeline_in.is_active is not None else True
-    pipeline_key = pipeline_in.pipeline_key or f"pipeline_{uuid.uuid4().hex[:12]}"
-    movement_mode = pipeline_in.movement_mode or "FLEXIBLE"
+    # Determine pipeline key: use provided value or generate a random key
+    if pipeline_in.pipeline_key:
+        pipeline_key = pipeline_in.pipeline_key
+    else:
+        # Generate a short random key using uuid4
+        pipeline_key = uuid.uuid4().hex
+    # Movement mode default
+    movement_mode = pipeline_in.movement_mode or "SEQUENTIAL"
     pipeline = Pipeline(
         tenant_id=tenant_id,
         name=pipeline_in.name,
@@ -225,7 +218,6 @@ def service_create_pipeline(
     )
     db.add(pipeline)
     commit_or_raise(db, refresh=pipeline)
-    # Emit created event with snapshot payload
     try:
         payload = _pipeline_snapshot(pipeline)
         PipelineMessageProducer.send_pipeline_created(
@@ -249,31 +241,39 @@ def service_update_pipeline(
     """
     Update a pipeline and emit a ``pipeline.updated`` event when changes occur.
 
-    Only the ``name`` field is currently updatable.  The service
-    computes a changes dictionary and publishes an event only if
-    changes are present.
+    Multiple fields may be updated including name, object type, display order,
+    active state, pipeline key and movement mode.  Only provided fields are
+    considered.  Changes are captured in a dictionary and published along
+    with a fresh snapshot.  Messaging errors are ignored to avoid
+    affecting the request outcome.
     """
     pipeline = service_get_pipeline(db, pipeline_id=pipeline_id, tenant_id=tenant_id)
     changes: Dict[str, Any] = {}
-    # Update allowed fields and track changes
+    # Name update
     if pipeline_in.name is not None and pipeline_in.name != pipeline.name:
         pipeline.name = pipeline_in.name
         changes["name"] = pipeline_in.name
+    # Object type update
     if pipeline_in.object_type is not None and pipeline_in.object_type != pipeline.object_type:
         pipeline.object_type = pipeline_in.object_type
         changes["object_type"] = pipeline_in.object_type
+    # Display order update
     if pipeline_in.display_order is not None and pipeline_in.display_order != pipeline.display_order:
         pipeline.display_order = pipeline_in.display_order
         changes["display_order"] = pipeline_in.display_order
+    # Active state update
     if pipeline_in.is_active is not None and pipeline_in.is_active != pipeline.is_active:
         pipeline.is_active = pipeline_in.is_active
         changes["is_active"] = pipeline_in.is_active
+    # Pipeline key update
     if pipeline_in.pipeline_key is not None and pipeline_in.pipeline_key != pipeline.pipeline_key:
         pipeline.pipeline_key = pipeline_in.pipeline_key
         changes["pipeline_key"] = pipeline_in.pipeline_key
+    # Movement mode update
     if pipeline_in.movement_mode is not None and pipeline_in.movement_mode != pipeline.movement_mode:
         pipeline.movement_mode = pipeline_in.movement_mode
         changes["movement_mode"] = pipeline_in.movement_mode
+    # Audit
     pipeline.updated_by = updated_user
     # Persist updates
     commit_or_raise(db, refresh=pipeline)

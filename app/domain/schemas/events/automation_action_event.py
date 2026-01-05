@@ -1,9 +1,12 @@
 """
-Event schemas for automation action lifecycle events.
+Event schemas for AutomationAction lifecycle.
 
-These Pydantic models define the payloads for events emitted when an
-automation action is created, updated or deleted.  Consumers can
-subscribe to these events to trigger side effects in other systems.
+This module defines payload structures for events emitted when
+automation actions are created, updated or deleted.  Each event
+includes the tenant context and either a full snapshot of the
+automation action or a delta describing changed base fields.  The
+structures mirror patterns used by other domain events such as
+support macros【480489992503603†L264-L275】.
 """
 
 from __future__ import annotations
@@ -11,34 +14,47 @@ from __future__ import annotations
 from typing import Any, Dict, Optional
 from uuid import UUID
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
-class AutomationActionBaseEvent(BaseModel):
-    """Common fields for all automation action events."""
+class AutomationActionDelta(BaseModel):
+    """Represents the set of changed base fields for an automation action."""
 
-    tenant_id: UUID
-
-
-class AutomationActionCreatedEvent(AutomationActionBaseEvent):
-    """Event emitted when an automation action is created."""
-
-    payload: Dict[str, Any]
+    base_fields: Optional[Dict[str, Any]] = Field(
+        default=None, description="Mapping of modified field names to their new values"
+    )
 
 
-class AutomationActionUpdatedEvent(AutomationActionBaseEvent):
-    """Event emitted when an automation action is updated."""
+class AutomationActionCreatedEvent(BaseModel):
+    """Payload for an automation_action.created event."""
 
-    payload: Dict[str, Any]
+    tenant_id: UUID = Field(..., description="Tenant identifier")
+    payload: Dict[str, Any] = Field(..., description="Full automation action snapshot")
 
 
-class AutomationActionDeletedEvent(AutomationActionBaseEvent):
-    """Event emitted when an automation action is deleted."""
+class AutomationActionUpdatedEvent(BaseModel):
+    """Payload for an automation_action.updated event."""
 
-    deleted_dt: Optional[str] = None
+    tenant_id: UUID = Field(..., description="Tenant identifier")
+    changes: AutomationActionDelta = Field(
+        ..., description="Delta describing modifications to base fields"
+    )
+    payload: Dict[str, Any] = Field(
+        ..., description="Full automation action snapshot after update"
+    )
+
+
+class AutomationActionDeletedEvent(BaseModel):
+    """Payload for an automation_action.deleted event."""
+
+    tenant_id: UUID = Field(..., description="Tenant identifier")
+    deleted_dt: Optional[str] = Field(
+        None, description="ISO timestamp of when the action was deleted"
+    )
 
 
 __all__ = [
+    "AutomationActionDelta",
     "AutomationActionCreatedEvent",
     "AutomationActionUpdatedEvent",
     "AutomationActionDeletedEvent",

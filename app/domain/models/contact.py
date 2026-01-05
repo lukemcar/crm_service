@@ -13,7 +13,7 @@ import uuid
 from datetime import datetime
 from typing import List, Optional
 
-from sqlalchemy import DateTime, Index, String, UniqueConstraint
+from sqlalchemy import DateTime, Index, String, UniqueConstraint, ForeignKeyConstraint
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -23,9 +23,27 @@ from app.core.db import Base
 class Contact(Base):
     __tablename__ = "contact"
     __table_args__ = (
+        # Unique constraint on composite primary key
         UniqueConstraint("id", "tenant_id", name="ux_contact_id_tenant"),
+        # Existing indexes on tenant and name for search
         Index("ix_contact_tenant", "tenant_id"),
         Index("ix_contact_tenant_last_first", "tenant_id", "last_name", "first_name"),
+        # Indexes for ownership fields to accelerate lookups
+        Index("ix_contact_tenant_owned_by_user", "tenant_id", "owned_by_user_id"),
+        Index("ix_contact_tenant_owned_by_group", "tenant_id", "owned_by_group_id"),
+        # Composite foreign keys linking ownership fields to tenant projection tables
+        ForeignKeyConstraint(
+            ["tenant_id", "owned_by_user_id"],
+            ["tenant_user_shadow.tenant_id", "tenant_user_shadow.user_id"],
+            ondelete="SET NULL",
+            name="fk_contact_owned_by_user_tenant",
+        ),
+        ForeignKeyConstraint(
+            ["tenant_id", "owned_by_group_id"],
+            ["tenant_group_shadow.tenant_id", "tenant_group_shadow.id"],
+            ondelete="SET NULL",
+            name="fk_contact_owned_by_group_tenant",
+        ),
         {"schema": "dyno_crm"},
     )
 
@@ -62,6 +80,23 @@ class Contact(Base):
 
     created_by: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     updated_by: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+
+    # -----------------------------------------------------------------
+    # Ownership fields
+    #
+    # A contact may be owned by a specific user or group.  Ownership
+    # information is stored via UUIDs pointing to the tenant_user_shadow
+    # and tenant_group_shadow projections.  These fields are optional and
+    # default to NULL when not supplied.  Indexes and foreign key
+    # constraints are defined in ``__table_args__`` above.
+    # -----------------------------------------------------------------
+    owned_by_user_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        PGUUID(as_uuid=True), nullable=True
+    )
+
+    owned_by_group_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        PGUUID(as_uuid=True), nullable=True
+    )
 
 
     # -----------------------------------------------------------------

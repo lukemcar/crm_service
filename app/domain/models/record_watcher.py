@@ -1,14 +1,23 @@
 """
-SQLAlchemy model for record watcher.
+SQLAlchemy model for RecordWatcher.
 
-This model represents subscriptions to record changes across the CRM.
-A watcher identifies a record by its type and ID and associates it
-with a principal (user or group) within a tenant.  The composite
-primary key ensures that a principal can subscribe to a record only
-once.  Indexes support efficient lookups by record or principal.
+This model represents a subscription to changes on a specific CRM record
+by a principal (user or group).  It mirrors the list membership
+patterns but uses a composite primary key rather than a surrogate ID.
+Each watcher is uniquely identified by the combination of tenant,
+record and principal identifiers.
 
-The underlying table is created via Liquibase (see consolidated
-CRM change request) and lives in the ``dyno_crm`` schema.
+Fields:
+
+* ``tenant_id`` – UUID identifying the tenant that owns the watcher
+* ``record_type`` – string indicating the type of the record (e.g. contact, company, deal)
+* ``record_id`` – UUID of the record being watched
+* ``principal_type`` – string indicating the type of principal subscribing (e.g. user, group)
+* ``principal_id`` – UUID of the subscribing principal
+* ``created_at`` – timestamp when the watcher was created
+* ``created_by_user_id`` – identifier of the user who created the watcher (for audit)
+
+Indexes are defined to support efficient queries by record and by principal.
 """
 
 from __future__ import annotations
@@ -17,7 +26,7 @@ import uuid
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import DateTime, Index, String
+from sqlalchemy import DateTime, Index, PrimaryKeyConstraint, String
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -25,64 +34,70 @@ from app.core.db import Base
 
 
 class RecordWatcher(Base):
-    """SQLAlchemy model mapping to ``dyno_crm.record_watcher``.
+    """SQLAlchemy model class for record watchers."""
 
-    Each watcher links a tenant, record and principal.  The composite
-    primary key spans all identifying columns; no surrogate ID is used.
-    """
-
-    __tablename__ = "record_watcher"
+    __tablename__ = "record_watchers"
     __table_args__ = (
-        # Index to quickly find watchers by principal
-        Index(
-            "ix_record_watcher_principal",
+        # Composite primary key ensures uniqueness across tenant/record/principal
+        PrimaryKeyConstraint(
             "tenant_id",
+            "record_type",
+            "record_id",
             "principal_type",
             "principal_id",
+            name="pk_record_watchers",
         ),
-        # Index to quickly find watchers by record
+        # Index to efficiently list watchers for a record
         Index(
-            "ix_record_watcher_record",
+            "ix_record_watchers_record",
             "tenant_id",
             "record_type",
             "record_id",
         ),
+        # Index to efficiently list watchers for a principal
+        Index(
+            "ix_record_watchers_principal",
+            "tenant_id",
+            "principal_type",
+            "principal_id",
+        ),
         {"schema": "dyno_crm"},
     )
 
-    # Tenant identifier (part of composite PK)
+    # Tenant identifier
     tenant_id: Mapped[uuid.UUID] = mapped_column(
-        PGUUID(as_uuid=True), primary_key=True, nullable=False
+        PGUUID(as_uuid=True),
+        nullable=False,
     )
 
-    # Type of the record being watched (e.g. CONTACT, COMPANY, DEAL)
+    # Record being watched
     record_type: Mapped[str] = mapped_column(
-        String(50), primary_key=True, nullable=False
+        String(50),
+        nullable=False,
     )
-
-    # Identifier of the record being watched
     record_id: Mapped[uuid.UUID] = mapped_column(
-        PGUUID(as_uuid=True), primary_key=True, nullable=False
+        PGUUID(as_uuid=True),
+        nullable=False,
     )
 
-    # Type of the principal subscribing to the record (USER or GROUP)
+    # Principal subscribing to changes
     principal_type: Mapped[str] = mapped_column(
-        String(20), primary_key=True, nullable=False
+        String(50),
+        nullable=False,
     )
-
-    # Identifier of the subscribing principal
     principal_id: Mapped[uuid.UUID] = mapped_column(
-        PGUUID(as_uuid=True), primary_key=True, nullable=False
+        PGUUID(as_uuid=True),
+        nullable=False,
     )
 
-    # Timestamp when the subscription was created
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, default=datetime.utcnow
+        DateTime(timezone=True),
+        nullable=False,
+        default=datetime.utcnow,
     )
-
-    # User ID of the creator (nullable for system subscriptions)
-    created_by_user_id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        PGUUID(as_uuid=True), nullable=True
+    created_by_user_id: Mapped[Optional[str]] = mapped_column(
+        String(100),
+        nullable=True,
     )
 
     def __repr__(self) -> str:

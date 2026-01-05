@@ -1,12 +1,12 @@
 """
-Event schemas for record watcher lifecycle events.
+Event message schemas for record watcher lifecycle events.
 
-When a principal subscribes to or unsubscribes from a record,
-the service layer emits an event to notify other systems.  These
-schemas define the payloads for created and deleted events.  No
-update event is defined since watchers cannot be modified in
-place—subscribers must unsubscribe and resubscribe if they wish to
-change their record or principal.
+These Pydantic models define the payloads for record watcher events.  When a
+watcher is created or deleted, an event is emitted via the messaging
+infrastructure to notify downstream consumers.  The messages follow the
+same conventions as other entity events in the CRM service: a base
+message carrying the tenant identifier and specific messages for
+created and deleted lifecycle events.
 """
 
 from __future__ import annotations
@@ -17,25 +17,19 @@ from uuid import UUID
 from pydantic import BaseModel
 
 
-class RecordWatcherBaseEvent(BaseModel):
-    """Common fields for record watcher events."""
+class RecordWatcherBaseMessage(BaseModel):
+    """Base fields common to all record watcher events."""
 
     tenant_id: UUID
 
 
-class RecordWatcherCreatedEvent(RecordWatcherBaseEvent):
+class RecordWatcherCreatedMessage(RecordWatcherBaseMessage):
     """Event emitted when a record watcher is created."""
 
     payload: Dict[str, Any]
 
 
-class RecordWatcherDeletedEvent(RecordWatcherBaseEvent):
+class RecordWatcherDeletedMessage(RecordWatcherBaseMessage):
     """Event emitted when a record watcher is deleted."""
 
     deleted_dt: Optional[str] = None
-
-
-__all__ = [
-    "RecordWatcherCreatedEvent",
-    "RecordWatcherDeletedEvent",
-]

@@ -12,12 +12,28 @@ from typing import Optional
 from uuid import UUID
 
 from pydantic import BaseModel, Field, ConfigDict
+from enum import Enum
+
+
+class ListObjectType(str, Enum):
+    """Allowed CRM object types for list memberships.
+
+    The change request introduced a dedicated ``list_object_type`` enum in the
+    database.  This Python enum mirrors that type to provide type safety
+    and validation at the API layer.  Additional values may be added as the
+    CRM evolves.
+    """
+
+    contact = "contact"
+    company = "company"
+    deal = "deal"
+    lead = "lead"
 
 
 class ListMembershipBase(BaseModel):
     list_id: UUID
     member_id: UUID
-    member_type: str = Field(..., max_length=50)
+    member_type: ListObjectType = Field(..., description="Type of the member record")
 
 
 class ListMembershipCreate(ListMembershipBase):

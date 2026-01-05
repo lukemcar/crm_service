@@ -11,7 +11,7 @@ import uuid
 from datetime import datetime
 from typing import List as TList, Optional
 
-from sqlalchemy import DateTime, Index, JSON, String, UniqueConstraint
+from sqlalchemy import DateTime, Index, JSON, String, UniqueConstraint, Boolean
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -21,8 +21,12 @@ from app.core.db import Base
 class List(Base):
     __tablename__ = "lists"
     __table_args__ = (
+        # Each list name must be unique per tenant and object type
         UniqueConstraint("tenant_id", "name", "object_type", name="ux_lists_tenant_name_object"),
+        # Index on tenant to support tenant scoped queries
         Index("ix_lists_tenant", "tenant_id"),
+        # Additional index on (tenant_id, object_type) to support filtering by object_type
+        Index("ix_lists_tenant_object_type", "tenant_id", "object_type"),
         {"schema": "dyno_crm"},
     )
 
@@ -55,6 +59,25 @@ class List(Base):
     filter_definition: Mapped[Optional[dict]] = mapped_column(
         JSON,
         nullable=True,
+    )
+
+    # New fields introduced in the consolidated change request
+    # processing_type denotes how the list should be processed.  It mirrors
+    # the ``list_processing_type`` Postgres enum but is stored as a string
+    # here.  Default is "STATIC" for backward compatibility.
+    processing_type: Mapped[str] = mapped_column(
+        String(50),
+        nullable=False,
+        default="STATIC",
+    )
+
+    # is_archived indicates whether the list has been archived.  Archived
+    # lists remain in the database but should be excluded from normal
+    # processing.  Default is False.
+    is_archived: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=False,
     )
 
     created_at: Mapped[datetime] = mapped_column(

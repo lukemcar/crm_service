@@ -194,6 +194,9 @@ def _contact_snapshot(contact: Any) -> Dict[str, Any]:
         "updated_at": contact.updated_at.isoformat() if contact.updated_at else None,
         "created_by": getattr(contact, "created_by", None),
         "updated_by": getattr(contact, "updated_by", None),
+        # Ownership fields included for consumers
+        "owned_by_user_id": getattr(contact, "owned_by_user_id", None),
+        "owned_by_group_id": getattr(contact, "owned_by_group_id", None),
         "phones": [_phone_snapshot(p) for p in getattr(contact, "phones", [])],
         "emails": [_email_snapshot(e) for e in getattr(contact, "emails", [])],
         "addresses": [_address_snapshot(a) for a in getattr(contact, "addresses", [])],
@@ -368,6 +371,9 @@ def create_contact(
         first_name=request.first_name,
         middle_name=request.middle_name,
         last_name=request.last_name,
+        # Assign ownership fields if provided on the request
+        owned_by_user_id=getattr(request, "owned_by_user_id", None),
+        owned_by_group_id=getattr(request, "owned_by_group_id", None),
         created_at=datetime.utcnow(),
         updated_at=datetime.utcnow(),
         created_by=created_by,

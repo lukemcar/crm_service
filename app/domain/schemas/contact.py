@@ -306,6 +306,22 @@ class TenantCreateContact(ContactBase):
     social_profiles: Optional[List[ContactSocialProfileCreateRequest]] = None
     notes: Optional[List[ContactNoteCreateRequest]] = None
 
+    # Ownership assignment
+    owned_by_user_id: Optional[uuid.UUID] = Field(
+        default=None,
+        description=(
+            "UUID of the user who owns this contact. Must reference a row in tenant_user_shadow "
+            "for the same tenant. If provided, owned_by_group_id must be omitted."
+        ),
+    )
+    owned_by_group_id: Optional[uuid.UUID] = Field(
+        default=None,
+        description=(
+            "UUID of the group that owns this contact. Must reference a row in tenant_group_shadow "
+            "for the same tenant. If provided, owned_by_user_id must be omitted."
+        ),
+    )
+
 
 class AdminCreateContact(TenantCreateContact):
     """Model for creating a contact via the admin API.
@@ -336,6 +352,8 @@ class ContactOut(ContactBase):
     updated_at: datetime
     created_by: Optional[str] = None
     updated_by: Optional[str] = None
+    owned_by_user_id: Optional[uuid.UUID] = None
+    owned_by_group_id: Optional[uuid.UUID] = None
     phones: List[ContactPhoneNumberResponse] = Field(default_factory=list)
     emails: List[ContactEmailResponse] = Field(default_factory=list)
     addresses: List[ContactAddressResponse] = Field(default_factory=list)

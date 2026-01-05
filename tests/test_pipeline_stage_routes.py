@@ -80,6 +80,8 @@ def _fake_stage_read(
     name: str = "Stage",
     display_order: int = 1,
     probability: float | None = None,
+    stage_state: str = "NOT_STARTED",
+    inherit_pipeline_actions: bool = True,
     created_by: str = "tester",
     updated_by: str = "tester",
 ) -> PipelineStageRead:
@@ -91,6 +93,8 @@ def _fake_stage_read(
         name=name,
         display_order=display_order,
         probability=probability,
+        stage_state=stage_state,
+        inherit_pipeline_actions=inherit_pipeline_actions,
         created_at=now,
         updated_at=now,
         created_by=created_by,
@@ -155,7 +159,11 @@ def test_create_stage_admin_uses_x_user(monkeypatch: pytest.MonkeyPatch) -> None
         probability=None,
     )
     fake_stage = _fake_stage_read(
-        tenant_id=tenant_id, stage_id=uuid.uuid4(), pipeline_id=pipeline_id, name=payload.name
+        tenant_id=tenant_id,
+        stage_id=uuid.uuid4(),
+        pipeline_id=pipeline_id,
+        name=payload.name,
+        display_order=payload.display_order,
     )
     captured: dict = {}
 
@@ -221,7 +229,11 @@ def test_update_stage_admin_uses_x_user(monkeypatch: pytest.MonkeyPatch) -> None
     fake_db = DummySession()
     payload = PipelineStageUpdate(name="Updated Stage", display_order=2)
     fake_stage = _fake_stage_read(
-        tenant_id=tenant_id, stage_id=stage_id, pipeline_id=pipeline_id, name=payload.name or "Stage"
+        tenant_id=tenant_id,
+        stage_id=stage_id,
+        pipeline_id=pipeline_id,
+        name=payload.name or "Stage",
+        display_order=payload.display_order or 1,
     )
     captured: dict = {}
 
@@ -352,7 +364,11 @@ def test_create_stage_tenant_uses_x_user(monkeypatch: pytest.MonkeyPatch) -> Non
         probability=None,
     )
     fake_stage = _fake_stage_read(
-        tenant_id=tenant_id, stage_id=uuid.uuid4(), pipeline_id=pipeline_id, name=payload.name
+        tenant_id=tenant_id,
+        stage_id=uuid.uuid4(),
+        pipeline_id=pipeline_id,
+        name=payload.name,
+        display_order=payload.display_order,
     )
     captured: dict = {}
 
@@ -438,6 +454,7 @@ def test_update_stage_tenant_uses_x_user(monkeypatch: pytest.MonkeyPatch) -> Non
         stage_id=stage_id,
         pipeline_id=pipeline_id,
         name=payload.name or "Stage",
+        display_order=payload.display_order or 1,
     )
     captured: dict = {}
 

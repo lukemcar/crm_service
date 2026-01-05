@@ -1,139 +1,119 @@
 """
-Service layer for stage history operations.
+Service layer for StageHistory entities.
 
-This module provides helper functions to manage stage history records.
-Stage history entries capture transitions of CRM entities between
-pipeline stages along with metadata such as who performed the change
-and when it occurred.  The service functions perform validation,
-commit transactions, and return ORM objects for further use.
+This module provides operations to record stage transitions and list
+historical stage changes for CRM entities.  Stage history entries are
+append-only and always associated with a tenant.  After a stage
+transition is recorded, an event is emitted via the message producer.
 """
 
 from __future__ import annotations
 
+import logging
 import uuid
 from datetime import datetime
-from typing import List as TypingList, Optional, Tuple
+from typing import List, Optional, Tuple, Dict, Any
 
-from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.domain.models.stage_history import StageHistory
-from app.domain.schemas.stage_history import StageHistoryCreate
+from app.domain.schemas.stage_history import StageHistoryCreate, StageHistoryRead
 from app.domain.services.common_service import commit_or_raise
+from app.messaging.producers.stage_history_producer import StageHistoryMessageProducer
+
+logger = logging.getLogger("stage_history_service")
 
 
-def service_create_stage_history(
+def _parse_iso(ts: Optional[str]) -> Optional[datetime]:
+    """Convert an ISO timestamp string to a datetime object, if provided."""
+    if ts is None:
+        return None
+    try:
+        return datetime.fromisoformat(ts)
+    except Exception:
+        return None
+
+
+def _snapshot(entry: StageHistory) -> Dict[str, Any]:
+    """Return a dictionary representation of a StageHistory for event payloads."""
+    read_model = StageHistoryRead.model_validate(entry, from_attributes=True)
+    return read_model.model_dump(mode="json")
+
+
+def record_stage_transition(
     db: Session,
     *,
     tenant_id: uuid.UUID,
-    history_in: StageHistoryCreate,
-    changed_by_user_id: Optional[uuid.UUID],
+    entry_in: StageHistoryCreate,
 ) -> StageHistory:
-    """Create a new stage history entry.
+    """Record a stage transition for an entity and emit an event.
 
-    Args:
-        db: SQLAlchemy session to use for DB operations.
-        tenant_id: The tenant ID in the URL path. Must match the tenant in ``history_in``.
-        history_in: Pydantic model with stage history creation attributes.
-        changed_by_user_id: Optional user identifier from the request header representing
-            who initiated the change.
+    Parameters
+    ----------
+    db : Session
+        SQLAlchemy session used for persistence.
+    tenant_id : UUID
+        Identifier of the tenant context.
+    entry_in : StageHistoryCreate
+        Data describing the stage transition.
 
-    Returns:
-        The newly created StageHistory ORM instance.
-
-    Raises:
-        HTTPException: If the tenant ID in the payload does not match the path parameter.
+    Returns
+    -------
+    StageHistory
+        The persisted stage history record.
     """
-    if history_in.tenant_id != tenant_id:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Tenant ID mismatch")
-    # Construct the StageHistory instance.  changed_at defaults to now if not provided
-    history = StageHistory(
-        tenant_id=history_in.tenant_id,
-        entity_type=history_in.entity_type,
-        entity_id=history_in.entity_id,
-        pipeline_id=history_in.pipeline_id,
-        from_stage_id=history_in.from_stage_id,
-        to_stage_id=history_in.to_stage_id,
-        changed_at=history_in.changed_at or datetime.utcnow(),
-        changed_by_user_id=changed_by_user_id or history_in.changed_by_user_id,
-        source=history_in.source,
+    changed_at_dt = _parse_iso(entry_in.changed_at) or datetime.utcnow()
+    entry = StageHistory(
+        tenant_id=tenant_id,
+        entity_type=entry_in.entity_type,
+        entity_id=entry_in.entity_id,
+        pipeline_id=entry_in.pipeline_id,
+        from_stage_id=entry_in.from_stage_id,
+        to_stage_id=entry_in.to_stage_id,
+        changed_at=changed_at_dt,
+        changed_by_user_id=entry_in.changed_by_user_id,
+        source=entry_in.source,
     )
-    db.add(history)
-    commit_or_raise(db, refresh=history)
-    return history
+    db.add(entry)
+    commit_or_raise(db, refresh=entry, action="create stage history")
+    # Emit stage history created event after successful commit
+    try:
+        payload = _snapshot(entry)
+        StageHistoryMessageProducer.send_stage_history_created(
+            tenant_id=tenant_id,
+            payload=payload,
+        )
+    except Exception:
+        logger.exception("Failed to publish stage history event")
+    return entry
 
 
-def service_list_stage_history_by_entity(
+def list_stage_history_by_entity(
     db: Session,
     *,
-    tenant_id: Optional[uuid.UUID],
+    tenant_id: uuid.UUID,
     entity_type: str,
     entity_id: uuid.UUID,
     limit: Optional[int] = None,
     offset: Optional[int] = None,
-) -> Tuple[TypingList[StageHistory], int]:
-    """List stage history entries for a specific entity.
+) -> Tuple[List[StageHistory], int]:
+    """List stage history records for a given entity.
 
-    Args:
-        db: SQLAlchemy session.
-        tenant_id: Optional tenant ID for multi‑tenant filtering. If provided,
-            the query will include only entries matching this tenant.
-        entity_type: The type of the entity (e.g., DEAL, LEAD).
-        entity_id: The identifier of the entity whose history is requested.
-        limit: Maximum number of entries to return.
-        offset: Number of entries to skip for pagination.
-
-    Returns:
-        A tuple ``(items, total)`` where ``items`` is the list of StageHistory
-        entries and ``total`` is the total count before pagination.
+    Results are ordered by ``changed_at`` descending.  Pagination can be
+    applied via ``limit`` and ``offset``.
     """
     query = db.query(StageHistory).filter(
+        StageHistory.tenant_id == tenant_id,
         StageHistory.entity_type == entity_type,
         StageHistory.entity_id == entity_id,
     )
-    if tenant_id is not None:
-        query = query.filter(StageHistory.tenant_id == tenant_id)
     total = query.count()
     if offset:
         query = query.offset(offset)
     if limit:
         query = query.limit(limit)
+    query = query.order_by(StageHistory.changed_at.desc())
     return query.all(), total
 
 
-def service_list_stage_history_by_pipeline(
-    db: Session,
-    *,
-    tenant_id: Optional[uuid.UUID],
-    pipeline_id: uuid.UUID,
-    limit: Optional[int] = None,
-    offset: Optional[int] = None,
-) -> Tuple[TypingList[StageHistory], int]:
-    """List stage history entries for a specific pipeline.
-
-    Args:
-        db: SQLAlchemy session.
-        tenant_id: Optional tenant ID for multi‑tenant filtering.
-        pipeline_id: The pipeline whose history entries are requested.
-        limit: Maximum number of entries to return.
-        offset: Number of entries to skip for pagination.
-
-    Returns:
-        A tuple ``(items, total)`` similar to ``service_list_stage_history_by_entity``.
-    """
-    query = db.query(StageHistory).filter(StageHistory.pipeline_id == pipeline_id)
-    if tenant_id is not None:
-        query = query.filter(StageHistory.tenant_id == tenant_id)
-    total = query.count()
-    if offset:
-        query = query.offset(offset)
-    if limit:
-        query = query.limit(limit)
-    return query.all(), total
-
-
-__all__ = [
-    "service_create_stage_history",
-    "service_list_stage_history_by_entity",
-    "service_list_stage_history_by_pipeline",
-]
+__all__ = ["record_stage_transition", "list_stage_history_by_entity"]

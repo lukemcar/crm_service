@@ -357,6 +357,22 @@ class TenantCreateCompany(CompanyBase):
     social_profiles: Optional[List[CompanySocialProfileCreateRequest]] = None
     notes: Optional[List[CompanyNoteCreateRequest]] = None
 
+    # Ownership assignment
+    owned_by_user_id: Optional[uuid.UUID] = Field(
+        default=None,
+        description=(
+            "UUID of the user who owns this company. Must reference a row in tenant_user_shadow "
+            "for the same tenant. If provided, owned_by_group_id must be omitted."
+        ),
+    )
+    owned_by_group_id: Optional[uuid.UUID] = Field(
+        default=None,
+        description=(
+            "UUID of the group that owns this company. Must reference a row in tenant_group_shadow "
+            "for the same tenant. If provided, owned_by_user_id must be omitted."
+        ),
+    )
+
 
 class AdminCreateCompany(TenantCreateCompany):
     """Model for creating a company via the admin API.
@@ -386,6 +402,8 @@ class CompanyOut(CompanyBase):
     updated_at: datetime
     created_by: Optional[str] = None
     updated_by: Optional[str] = None
+    owned_by_user_id: Optional[uuid.UUID] = None
+    owned_by_group_id: Optional[uuid.UUID] = None
     phones: List[CompanyPhoneNumberResponse] = Field(default_factory=list)
     emails: List[CompanyEmailResponse] = Field(default_factory=list)
     addresses: List[CompanyAddressResponse] = Field(default_factory=list)

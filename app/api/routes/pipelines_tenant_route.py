@@ -33,21 +33,33 @@ def list_pipelines(
     *,
     tenant_id: UUID = Path(..., description="Tenant identifier"),
     name: Optional[str] = Query(
-        None, description="Filter pipelines by name (case‑insensitive substring match)"
+        None,
+        description="Filter pipelines by name (case‑insensitive substring match)",
     ),
     object_type: Optional[str] = Query(
-        None, description="Filter pipelines by object type (e.g., DEAL, TICKET)"
+        None,
+        description="Filter pipelines by object type (exact match)",
     ),
     is_active: Optional[bool] = Query(
-        None, description="Filter by pipeline active status"
+        None,
+        description="Filter pipelines by active state (True or False)",
     ),
-    limit: Optional[int] = Query(None, ge=1, description="Maximum number of pipelines to return"),
-    offset: Optional[int] = Query(None, ge=0, description="Number of pipelines to skip"),
+    limit: Optional[int] = Query(
+        None,
+        ge=1,
+        description="Maximum number of pipelines to return",
+    ),
+    offset: Optional[int] = Query(
+        None,
+        ge=0,
+        description="Number of pipelines to skip",
+    ),
     db: Session = Depends(get_db),
 ) -> schemas.PaginationEnvelope[schemas.PipelineRead]:
     """List pipelines for a tenant.
 
-    Supports optional filtering by name, object type, active status and pagination.
+    Supports optional filtering by name, object type, active state and
+    pagination.
     """
     items, total = pipeline_service.service_list_pipelines(
         db,

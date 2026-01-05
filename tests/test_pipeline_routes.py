@@ -45,15 +45,31 @@ def _fake_pipeline_read(
     tenant_id: uuid.UUID,
     pipeline_id: uuid.UUID,
     name: str = "Test Pipeline",
+    object_type: str = "deal",
+    display_order: int = 1,
+    is_active: bool = True,
+    pipeline_key: str | None = None,
+    movement_mode: str = "SEQUENTIAL",
     created_by: str = "tester",
     updated_by: str = "tester",
 ) -> PipelineRead:
-    """Construct a ``PipelineRead`` with sensible defaults and dynamic timestamps."""
+    """Construct a ``PipelineRead`` with sensible defaults and dynamic timestamps.
+
+    Includes new pipeline fields such as object_type, display_order, is_active,
+    pipeline_key and movement_mode to satisfy the updated schema.
+    """
     now = datetime.now(timezone.utc)
+    # Generate a predictable pipeline key if not supplied
+    key = pipeline_key or "test-key"
     return PipelineRead(
         id=pipeline_id,
         tenant_id=tenant_id,
         name=name,
+        object_type=object_type,
+        display_order=display_order,
+        is_active=is_active,
+        pipeline_key=key,
+        movement_mode=movement_mode,
         created_at=now,
         updated_at=now,
         created_by=created_by,
@@ -86,6 +102,8 @@ def test_list_pipelines_admin_calls_service(monkeypatch: pytest.MonkeyPatch) -> 
     result = list_pipelines_admin(
         tenant_id=tenant_id,
         name="Search",
+        object_type=None,
+        is_active=None,
         limit=5,
         offset=0,
         db=fake_db,
@@ -94,6 +112,8 @@ def test_list_pipelines_admin_calls_service(monkeypatch: pytest.MonkeyPatch) -> 
     assert captured["db"] is fake_db
     assert captured["tenant_id"] == tenant_id
     assert captured["name"] == "Search"
+    assert captured.get("object_type") is None
+    assert captured.get("is_active") is None
     assert captured["limit"] == 5
     assert captured["offset"] == 0
     assert result.total == total
@@ -109,7 +129,7 @@ def test_create_pipeline_admin_uses_x_user(monkeypatch: pytest.MonkeyPatch) -> N
     """Admin create endpoint should pass ``X‑User`` through to the service layer."""
     tenant_id = uuid.uuid4()
     fake_db = DummySession()
-    payload = PipelineCreate(name="Admin Pipeline")
+    payload = PipelineCreate(name="Admin Pipeline", object_type="deal")
     fake_pipeline = _fake_pipeline_read(
         tenant_id=tenant_id, pipeline_id=uuid.uuid4(), name=payload.name
     )
@@ -232,6 +252,8 @@ def test_list_pipelines_tenant_calls_service(monkeypatch: pytest.MonkeyPatch) ->
     result = list_pipelines_tenant(
         tenant_id=tenant_id,
         name=None,
+        object_type=None,
+        is_active=None,
         limit=None,
         offset=None,
         db=fake_db,
@@ -239,9 +261,11 @@ def test_list_pipelines_tenant_calls_service(monkeypatch: pytest.MonkeyPatch) ->
 
     assert captured["db"] is fake_db
     assert captured["tenant_id"] == tenant_id
-    assert captured["name"] is None
-    assert captured["limit"] is None
-    assert captured["offset"] is None
+    assert captured.get("name") is None
+    assert captured.get("object_type") is None
+    assert captured.get("is_active") is None
+    assert captured.get("limit") is None
+    assert captured.get("offset") is None
     assert result.total == total
     assert len(result.items) == len(fake_pipelines)
 
@@ -255,7 +279,7 @@ def test_create_pipeline_tenant_uses_x_user(monkeypatch: pytest.MonkeyPatch) -> 
     """Tenant create endpoint should pass through ``X‑User`` to the service layer."""
     tenant_id = uuid.uuid4()
     fake_db = DummySession()
-    payload = PipelineCreate(name="Tenant Pipeline")
+    payload = PipelineCreate(name="Tenant Pipeline", object_type="deal")
     fake_pipeline = _fake_pipeline_read(
         tenant_id=tenant_id, pipeline_id=uuid.uuid4(), name=payload.name
     )

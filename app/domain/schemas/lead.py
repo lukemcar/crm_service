@@ -79,6 +79,22 @@ class LeadBase(BaseModel):
 
     lead_data: Optional[LeadData] = None
 
+    # Ownership assignment
+    owned_by_user_id: Optional[uuid.UUID] = Field(
+        default=None,
+        description=(
+            "UUID of the user who owns this lead. Must reference a row in tenant_user_shadow "
+            "for the same tenant. If provided, owned_by_group_id must be omitted."
+        ),
+    )
+    owned_by_group_id: Optional[uuid.UUID] = Field(
+        default=None,
+        description=(
+            "UUID of the group that owns this lead. Must reference a row in tenant_group_shadow "
+            "for the same tenant. If provided, owned_by_user_id must be omitted."
+        ),
+    )
+
 
 class CreateLead(LeadBase):
     """
@@ -87,6 +103,7 @@ class CreateLead(LeadBase):
     tenant_id is typically derived from auth context or path param in your API.
     If you want it client-supplied, add tenant_id here.
     """
+    # Inherit ownership fields from LeadBase
     pass
 
 
@@ -106,6 +123,10 @@ class UpdateLead(BaseModel):
 
     lead_data: Optional[LeadData] = None
 
+    # Ownership assignment
+    owned_by_user_id: Optional[uuid.UUID] = None
+    owned_by_group_id: Optional[uuid.UUID] = None
+
 
 class LeadOut(LeadBase):
     """
@@ -123,6 +144,10 @@ class LeadOut(LeadBase):
 
     created_by: Optional[str] = None
     updated_by: Optional[str] = None
+
+    # Ownership fields exposed in read
+    owned_by_user_id: Optional[uuid.UUID] = None
+    owned_by_group_id: Optional[uuid.UUID] = None
     
 __all__ = [
     "LeadData",

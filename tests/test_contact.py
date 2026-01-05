@@ -30,6 +30,8 @@ def _fake_contact_out(
     last_name: str,
     created_by: str = "tester",
     updated_by: str = "tester",
+    owned_by_user_id: uuid.UUID | None = None,
+    owned_by_group_id: uuid.UUID | None = None,
 ) -> ContactOut:
     now = datetime.now(timezone.utc)
 
@@ -44,6 +46,8 @@ def _fake_contact_out(
         maiden_name=None,
         prefix=None,
         suffix=None,
+        owned_by_user_id=owned_by_user_id,
+        owned_by_group_id=owned_by_group_id,
         phones=[],
         emails=[],
         addresses=[],

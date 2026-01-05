@@ -1,8 +1,8 @@
 {
   "versioning": {
     "project_id": "crm_service",
-    "current_iteration": 9,
-    "latest_iteration_id": "ITER-0009"
+    "current_iteration": 8,
+    "latest_iteration_id": "ITER-0007"
   },
   "files_history": {
     "inputs": [
@@ -675,69 +675,6 @@
         ]
       },
       "history": []
-    },
-    {
-      "iteration_id": "ITER-0009",
-      "iteration_number": 9,
-      "run": {
-        "run_id": "b35fd3de-d182-4bd5-8f70-4a07c4c1c72c",
-        "agent_role": "CRM Change Implementation Agent",
-        "agent_script_title": "Consolidated CRM Change Implementation",
-        "started_at": "2026-01-03T22:01:00.810935Z",
-        "completed_at": "2026-01-03T22:01:00.810935Z",
-        "status": "IN_PROGRESS"
-      },
-      "inputs_used": [
-        {
-          "file_id": "file-32augUaKu32g9hASw2c2RL",
-          "name": "updated_crm_service_T120.zip",
-          "notes": "Refreshed workspace"
-        }
-      ],
-      "state_file_handling": {
-        "loaded_from": "workspace",
-        "merged": false,
-        "merge_notes": ""
-      },
-      "outputs_produced": [],
-      "artifacts_produced": [],
-      "change_log": {
-        "entry_title": "2026-01-03 - Activity Domain Enhancements and Ownership Updates",
-        "summary": "Implemented Activity domain enhancements (T130) including renaming type to activity_type, adding new fields and updating schemas, services, routes and tests. Completed remaining ownership updates for Contact, Company, Deal, and Lead domains and marked their tasks as completed.",
-        "added": [
-          "activity_at, created_by_user_id, assigned_group_id, details_json fields to activity model and schemas"
-        ],
-        "changed": [
-          "Updated activity services to use activity_type and handle new fields",
-          "Updated activity routes to expose new query parameters",
-          "Updated tests for activity routes"
-        ],
-        "fixed": [],
-        "tests": [
-          "Updated test_activity_routes to use activity_type and verify new filters"
-        ],
-        "notes": [
-          "Ensure migration is applied before deploying due to renamed column",
-          "Added new validation task T140 to review completed work and ensure alignment with the guide."
-        ],
-        "files_modified": [],
-        "files_added": [],
-        "files_deleted": [],
-        "commands_executed": []
-      },
-      "task_snapshot": {
-        "counts_by_status": {
-          "COMPLETED": 14,
-          "NOT_STARTED": 2
-        },
-        "current_task_id": "T900",
-        "notes_for_next_session": [
-          "Finalize packaging and verify tests pass.",
-          "Mark T020 status if fully completed.",
-          "Run compileall and adjust final tasks."
-        ]
-      },
-      "history": []
     }
   ],
   "tasks": [
@@ -872,14 +809,23 @@
           "action": "Refined automation action model with check constraint and foreign keys"
         }
       ],
-      "history": [
-        {
-          "ts": "2026-01-03T22:01:00.810935Z",
-          "event": "STATUS_CHANGE",
-          "details": "Marked as completed in iteration ITER-0008"
-        }
-      ],
-      "status": "COMPLETED"
+      "history": [],
+      "status": "IN_PROGRESS",
+      "resume_context": {
+        "current_focus": "Automation action domain: refine tests and validations",
+        "last_completed": "Added check constraint and FKs to model; updated CHANGELOG; compiled successfully",
+        "next_actions": [
+          "Add unit tests for automation action service and model validations",
+          "Implement failure path tests for missing or multiple scope targets",
+          "Review event producer integration and verify payload shapes"
+        ],
+        "files_to_open_next": [
+          "app/domain/models/automation_action.py",
+          "tests/test_automation_action_service.py",
+          "CHANGELOG.md"
+        ],
+        "test_status": "Pending additional tests for service validations"
+      }
     },
     {
       "task_id": "T030",
@@ -1129,14 +1075,8 @@
       "dependencies": [],
       "blockers": [],
       "work_log": [],
-      "history": [
-        {
-          "ts": "2026-01-03T22:01:00.810935Z",
-          "event": "STATUS_CHANGE",
-          "details": "Marked as completed in iteration ITER-0008"
-        }
-      ],
-      "status": "COMPLETED"
+      "history": [],
+      "status": "IN_PROGRESS"
     },
     {
       "task_id": "T100",
@@ -1162,14 +1102,25 @@
       "dependencies": [],
       "blockers": [],
       "work_log": [],
-      "history": [
-        {
-          "ts": "2026-01-03T22:01:00.810935Z",
-          "event": "STATUS_CHANGE",
-          "details": "Marked as completed in iteration ITER-0008"
-        }
-      ],
-      "status": "COMPLETED"
+      "history": [],
+      "status": "IN_PROGRESS",
+      "resume_context": {
+        "current_focus": "Implement Company domain ownership across routes, services, events and tests",
+        "last_completed": "Added ownership columns to company model and schemas",
+        "next_actions": [
+          "Update event producer payloads to include owner fields",
+          "Add tests for company create/update endpoints with owner fields",
+          "Ensure company routes forward ownership fields"
+        ],
+        "files_to_open_next": [
+          "workspace/app/domain/services/company_service.py",
+          "workspace/app/domain/schemas/events/company_event.py",
+          "workspace/app/messaging/producers/company_producer.py",
+          "workspace/tests/test_company.py"
+        ],
+        "test_status": "Pending",
+        "next_validation_steps": "Run python -m compileall -q app and update tests"
+      }
     },
     {
       "task_id": "T110",
@@ -1195,14 +1146,25 @@
       "dependencies": [],
       "blockers": [],
       "work_log": [],
-      "history": [
-        {
-          "ts": "2026-01-03T22:01:00.810935Z",
-          "event": "STATUS_CHANGE",
-          "details": "Marked as completed in iteration ITER-0008"
-        }
-      ],
-      "status": "COMPLETED"
+      "history": [],
+      "status": "IN_PROGRESS",
+      "resume_context": {
+        "current_focus": "Finalize deal ownership, assignment, categorization and forecasting fields across service and event layers",
+        "last_completed": "Added fields to deal model and schemas",
+        "next_actions": [
+          "Ensure deal service persisting new fields and computing deltas",
+          "Update event producer payload to include new fields",
+          "Add tests for deal create/update endpoints with ownership and assignment"
+        ],
+        "files_to_open_next": [
+          "workspace/app/domain/services/deal_service.py",
+          "workspace/app/domain/schemas/events/deal_event.py",
+          "workspace/app/messaging/producers/deal_producer.py",
+          "workspace/tests/test_deal_routes.py"
+        ],
+        "test_status": "Pending",
+        "next_validation_steps": "Run compileall and update tests"
+      }
     },
     {
       "task_id": "T120",
@@ -1228,14 +1190,24 @@
       "dependencies": [],
       "blockers": [],
       "work_log": [],
-      "history": [
-        {
-          "ts": "2026-01-03T22:01:00.810935Z",
-          "event": "STATUS_CHANGE",
-          "details": "Marked as completed in iteration ITER-0008"
-        }
-      ],
-      "status": "COMPLETED"
+      "history": [],
+      "status": "IN_PROGRESS",
+      "resume_context": {
+        "current_focus": "Complete lead ownership implementation and validation",
+        "last_completed": "Added ownership columns to lead model and schemas; updated service and snapshot; added tests for create endpoints",
+        "next_actions": [
+          "Update lead update and patch tests for ownership fields",
+          "Validate that events include ownership fields",
+          "Consider adding validation to ensure one of user or group owner is set"
+        ],
+        "files_to_open_next": [
+          "workspace/app/domain/services/lead_service.py",
+          "workspace/app/domain/schemas/lead.py",
+          "workspace/tests/test_lead_routes.py"
+        ],
+        "test_status": "In progress",
+        "next_validation_steps": "Review event payloads and update tests accordingly"
+      }
     },
     {
       "task_id": "T130",
@@ -1261,14 +1233,8 @@
       "dependencies": [],
       "blockers": [],
       "work_log": [],
-      "history": [
-        {
-          "ts": "2026-01-03T22:01:00.810935Z",
-          "event": "STATUS_CHANGE",
-          "details": "Marked as completed in iteration ITER-0008"
-        }
-      ],
-      "status": "COMPLETED"
+      "history": [],
+      "status": "NOT_STARTED"
     },
     {
       "task_id": "T900",
@@ -1292,61 +1258,6 @@
         "updated": [],
         "to_add": [],
         "commands": []
-      },
-      "dependencies": [],
-      "blockers": [],
-      "work_log": [],
-      "history": [],
-      "status": "NOT_STARTED"
-    },
-    {
-      "task_id": "T140",
-      "title": "Validate Completed Tasks",
-      "goal": "Review all completed domains and tests to ensure correctness and alignment with the implementation guide.",
-      "scope": [
-        "Verify that imported modules and packages are correct and available.",
-        "Inspect implemented code for syntax correctness and adherence to project conventions.",
-        "Cross-check implemented features with the Implementation Guide for completeness.",
-        "Review created/updated tests to ensure they cover the implemented code.",
-        "Run compileall to verify code compiles without errors."
-      ],
-      "non_goals": [
-        "Introduce new functionality",
-        "Refactor unrelated areas of the code"
-      ],
-      "acceptance_criteria": [
-        "All completed tasks are validated against the implementation guide",
-        "Imports are correct and resolve without errors",
-        "No syntax errors exist in implemented files",
-        "Tests correspond to the implemented code and cover happy and failure paths",
-        "project compiles successfully via python -m compileall -q app"
-      ],
-      "implementation_plan": [
-        "Iterate over each completed task domain (record watcher, automation action, stage history, pipeline, etc.)",
-        "Open the corresponding model, schema, service and route files to verify fields and behaviour",
-        "Consult the implementation guide lines relevant to each domain to confirm requirements are met",
-        "Check import statements in each file for correctness and adjust if necessary",
-        "Review corresponding tests to ensure they test the implemented code paths",
-        "Run python -m compileall -q app to validate syntax",
-        "Update files and tests if discrepancies are found, and document changes"
-      ],
-      "files": {
-        "touched": [],
-        "to_touch_next": [
-          "app/domain/models/*",
-          "app/domain/schemas/*",
-          "app/domain/services/*",
-          "app/api/routes/*",
-          "tests/*"
-        ],
-        "new_files": []
-      },
-      "tests": {
-        "updated": [],
-        "to_add": [],
-        "commands": [
-          "python -m compileall -q app"
-        ]
       },
       "dependencies": [],
       "blockers": [],

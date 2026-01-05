@@ -11,7 +11,15 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import Optional
 
-from sqlalchemy import Date, DateTime, ForeignKey, Index, Numeric, String
+from sqlalchemy import (
+    Date,
+    DateTime,
+    ForeignKey,
+    Index,
+    Numeric,
+    String,
+    ForeignKeyConstraint,
+)
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -21,9 +29,40 @@ from app.core.db import Base
 class Deal(Base):
     __tablename__ = "deals"
     __table_args__ = (
+        # Tenant scoped indexes
         Index("ix_deals_tenant", "tenant_id"),
         Index("ix_deals_pipeline", "pipeline_id"),
         Index("ix_deals_stage", "stage_id"),
+        # Indexes for ownership and assignment fields to improve query performance
+        Index("ix_deals_tenant_owned_by_user", "tenant_id", "owned_by_user_id"),
+        Index("ix_deals_tenant_owned_by_group", "tenant_id", "owned_by_group_id"),
+        Index("ix_deals_tenant_assigned_user", "tenant_id", "assigned_user_id"),
+        Index("ix_deals_tenant_assigned_group", "tenant_id", "assigned_group_id"),
+        # Composite foreign keys linking ownership and assignment fields to tenant projection tables
+        ForeignKeyConstraint(
+            ["tenant_id", "owned_by_user_id"],
+            ["tenant_user_shadow.tenant_id", "tenant_user_shadow.user_id"],
+            ondelete="SET NULL",
+            name="fk_deal_owned_by_user_tenant",
+        ),
+        ForeignKeyConstraint(
+            ["tenant_id", "owned_by_group_id"],
+            ["tenant_group_shadow.tenant_id", "tenant_group_shadow.id"],
+            ondelete="SET NULL",
+            name="fk_deal_owned_by_group_tenant",
+        ),
+        ForeignKeyConstraint(
+            ["tenant_id", "assigned_user_id"],
+            ["tenant_user_shadow.tenant_id", "tenant_user_shadow.user_id"],
+            ondelete="SET NULL",
+            name="fk_deal_assigned_user_tenant",
+        ),
+        ForeignKeyConstraint(
+            ["tenant_id", "assigned_group_id"],
+            ["tenant_group_shadow.tenant_id", "tenant_group_shadow.id"],
+            ondelete="SET NULL",
+            name="fk_deal_assigned_group_tenant",
+        ),
         {"schema": "dyno_crm"},
     )
 
@@ -70,6 +109,31 @@ class Deal(Base):
         Numeric(5, 2),
         nullable=True,
     )
+
+    # -----------------------------------------------------------------
+    # Ownership and assignment fields
+    #
+    # A deal may be owned and/or assigned to a user or group.  These fields
+    # reference tenant projection tables via composite foreign keys and are
+    # optional.  Indexes on these columns are defined in ``__table_args__``.
+    # -----------------------------------------------------------------
+    owned_by_user_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        PGUUID(as_uuid=True), nullable=True
+    )
+    owned_by_group_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        PGUUID(as_uuid=True), nullable=True
+    )
+    assigned_user_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        PGUUID(as_uuid=True), nullable=True
+    )
+    assigned_group_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        PGUUID(as_uuid=True), nullable=True
+    )
+
+    # Deal categorization and forecasting
+    deal_type: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    forecast_probability: Mapped[Optional[Decimal]] = mapped_column(Numeric(5, 2), nullable=True)
+    close_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

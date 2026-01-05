@@ -1,10 +1,9 @@
 """
-Pydantic schemas for stage history entries.
+Pydantic schemas for the StageHistory domain.
 
-These models define the structures used by the API and service layers
-to create and retrieve stage history records.  A stage history
-represents a transition of an entity between stages of a pipeline and
-includes metadata about who initiated the change and when it occurred.
+Stage history records capture transitions between pipeline stages for CRM entities.
+These schemas define the structure for creation requests (internal use) and
+read responses used by the API.
 """
 
 from __future__ import annotations
@@ -13,49 +12,54 @@ import uuid
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 
-class StageHistoryBase(BaseModel):
-    """Shared attributes for creating or updating stage history records."""
+class StageHistoryCreate(BaseModel):
+    """Request model for recording a stage history entry."""
 
-    entity_type: str = Field(..., max_length=50, description="Type of the CRM entity (e.g., DEAL, LEAD)")
-    entity_id: uuid.UUID = Field(..., description="Identifier of the entity that changed stages")
+    entity_type: str = Field(
+        ..., max_length=50, description="Entity type (e.g. deal, lead)"
+    )
+    entity_id: uuid.UUID = Field(
+        ..., description="Identifier of the entity whose stage changed"
+    )
     pipeline_id: Optional[uuid.UUID] = Field(
-        default=None, description="Optional identifier of the pipeline associated with the change"
+        default=None, description="Optional pipeline identifier"
     )
     from_stage_id: Optional[uuid.UUID] = Field(
-        default=None, description="Identifier of the previous stage, if any"
+        default=None, description="Previous stage identifier"
     )
     to_stage_id: Optional[uuid.UUID] = Field(
-        default=None, description="Identifier of the new stage, if any"
+        default=None, description="New stage identifier"
     )
-    changed_at: Optional[datetime] = Field(
-        default=None, description="Timestamp when the stage change occurred; defaults to now"
+    changed_at: Optional[str] = Field(
+        default=None,
+        description="ISO timestamp when the stage change occurred; defaults to now",
     )
     changed_by_user_id: Optional[uuid.UUID] = Field(
-        default=None, description="User ID of the person who initiated the change"
+        default=None, description="User who performed the change"
     )
     source: Optional[str] = Field(
-        default=None, max_length=50, description="Optional string describing the source of the change"
+        default=None, max_length=50, description="Optional source of the change"
     )
 
 
-class StageHistoryCreate(StageHistoryBase):
-    """Model for creating a stage history entry."""
-
-    tenant_id: uuid.UUID = Field(..., description="Tenant identifier for the history entry")
-    # ``changed_at`` will default to current timestamp when the record is persisted
-
-
-class StageHistoryRead(StageHistoryBase):
-    """Model returned when reading a stage history entry."""
+class StageHistoryRead(BaseModel):
+    """Response model representing a stage history record."""
 
     id: uuid.UUID
     tenant_id: uuid.UUID
-    # ``changed_at`` will always be populated on read
+    entity_type: str
+    entity_id: uuid.UUID
+    pipeline_id: Optional[uuid.UUID] = None
+    from_stage_id: Optional[uuid.UUID] = None
+    to_stage_id: Optional[uuid.UUID] = None
+    changed_at: Optional[datetime] = None
+    changed_by_user_id: Optional[uuid.UUID] = None
+    source: Optional[str] = None
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, extra="ignore")
 
 
 __all__ = ["StageHistoryCreate", "StageHistoryRead"]

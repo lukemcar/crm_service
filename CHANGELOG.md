@@ -1,76 +1,161 @@
-## [2026-01-03] – Pipeline and Stage Modifications
+## [2026-01-03] – Lead Ownership Enhancements
+
+## [2026-01-04] – Validation and Finalization of Completed Tasks
 
 ### Added
-* Added new columns to the **Pipeline** model: `object_type` (enum), `display_order`, `is_active`, `pipeline_key` and `movement_mode`.  The service layer now computes sensible defaults for these fields on creation and allows them to be updated.  List endpoints accept optional filters on `object_type` and `is_active`.  Corresponding Pydantic schemas were updated to expose the new fields.
-* Introduced new columns to the **PipelineStage** model: `display_order` (renamed from the legacy `stage_order`), `stage_state` (with default `NOT_STARTED`) and `inherit_pipeline_actions` (boolean).  Added a check constraint ensuring `probability` values lie within `[0,1]` and updated uniqueness constraints to be based on `(pipeline_id, display_order)`.  Pydantic schemas now include these fields and route tests have been updated to use `display_order`.
-* Added probability range validation via a `CheckConstraint` on the pipeline stages table.
+* Added **Task T140** as a final validation step to review all previously completed domain implementations.  This task involved inspecting models, schemas, services, event producers and routes across the record watcher, automation action, stage history, pipeline, list, list membership, contact, company, deal, lead and activity domains.  Each implementation was cross‑checked against the Consolidated CRM Change Request implementation guide to ensure the work matches the required scope.  Imports were verified to reference existing modules correctly.
 
 ### Changed
-* Updated pipeline service functions and routes to support filtering by `object_type` and `is_active` and to compute defaults for the new columns.  The pipeline list endpoints now accept `object_type` and `is_active` query parameters.
-* Updated pipeline stage service functions to handle the renamed `display_order` field and to set or update `stage_state` and `inherit_pipeline_actions`.  Duplicate detection now uses `display_order` instead of `stage_order`.
-* Updated the `Pipeline` model’s relationship ordering to sort stages by `display_order` instead of `stage_order`.
-* Updated route tests for pipeline stages to use `display_order` and adjusted payloads accordingly.
+* Consolidated duplicate `__table_args__` declarations in the **Activity** model into a single tuple that includes both the schema specification and the composite foreign key constraints.  The original implementation accidentally defined `__table_args__` twice, which could override earlier declarations and drop foreign key constraints.  The updated definition ensures that foreign keys to `tenant_user_shadow` and `tenant_group_shadow` are applied consistently.
 
 ### Tests
-* Updated `test_pipeline_stage_routes.py` to pass `display_order` instead of `stage_order` and to construct `PipelineStageRead` objects with `display_order`.  Ensured that service delegation and audit header propagation remain correct.
+* Reviewed existing test suites for the modified domains.  Verified that route tests properly forward path parameters, query parameters and `X‑User` audit headers to the corresponding service functions.  Ensured that tests construct fixtures using the new fields introduced by the change request (e.g. `object_type`, `display_order`, ownership fields) and that their assertions match the current code.  No new tests were added in this iteration because the validation task focused on verifying existing coverage rather than introducing new functionality.
 
 ### Notes
-* These changes correspond to the consolidated CRM change set which renames `stage_order` to `display_order` and introduces new columns.  Deployment must ensure that the database schema is migrated before the application is upgraded to these models.
+* Running `python -m compileall -q workspace/app` verified that all updated modules compile without syntax errors.  While the validation found no additional critical issues, some legacy functions remain for backward compatibility and are not referenced in the new tests.  Further integration testing is recommended in a real environment to fully validate end‑to‑end behaviour.
 
-## [2026-01-03] – Stage History Domain
-
-### Added
-* Added stage history domain: SQLAlchemy model capturing transitions between pipeline stages for CRM entities.
-* Added Pydantic schemas for creating and reading stage history entries.
-* Added a service layer with functions to create stage history records and list them by entity or pipeline.
-* Added tests for the stage history service verifying tenant ID validation and successful creation.
-* Updated the model aggregator to import `StageHistory` so the ORM can discover the new table.
-
-### Notes
-* Stage history records are created via service calls; no public API routes or messaging events are provided at this time.
-
-## [2026-01-03] – Automation Action Domain
 
 ### Added
-* Added automation action domain: SQLAlchemy model, Pydantic schemas, service layer, events and message producer.
-* Added admin and tenant routes for automation actions to list, create, update and delete automation actions.
-* Integrated automation action routers into `main_api.py` and aggregated API router exports.
-* Added test modules for automation action service and routes.
+* Added ``owned_by_user_id`` and ``owned_by_group_id`` columns to the **Lead** model with composite foreign keys to ``tenant_user_shadow`` and ``tenant_group_shadow`` and indexes to support efficient filtering by owner.  Extended lead Pydantic schemas to accept these optional ownership fields on create and update operations and to include them in read responses.
 
 ### Changed
-* Updated router aggregator and `main_api.py` to include automation action routers.
-* Updated event exports to include `AutomationActionCreatedEvent`, `AutomationActionUpdatedEvent`, `AutomationActionDeletedEvent`.
-* Updated Celery configuration to include `automation_action` and `record_watcher` domains and producers aggregator to export new message producers.
+* Updated the lead service to persist ownership fields during lead creation and update, to include them in snapshot payloads for events and to compute deltas when ownership assignments change.  Added backwards compatibility aliases (``service_create_lead`` etc.) so that existing admin routes continue to function.
+* Enhanced the lead snapshot helper to include ownership fields and updated change detection logic in update and patch operations to capture changes to these fields.
+
+### Tests
+* Added ``tests/test_lead_routes.py`` which verifies that both tenant and admin lead creation endpoints forward ownership fields (``owned_by_user_id`` and ``owned_by_group_id``) along with the ``X-User`` audit header to the service layer and that the returned ``LeadOut`` includes the assigned owner.
 
 ### Notes
-* Automation actions define workflow rules triggered by CRM events. They are scoped to a record, pipeline, stage, or list, and support prioritized execution and inheritance.
-* Scope validation ensures that exactly one scope target is specified.
+* Future work may introduce validation to enforce that only one of the user or group ownership fields is provided when creating or updating a lead.
 
-## [2026-01-03] – Automation Action Execution Domain
-
-### Added
-* Added automation action execution domain: SQLAlchemy model, Pydantic schemas, and service layer.
-* Added service functions to create and update executions with validation for tenant matching and status.
-* Added tests for the automation action execution service covering tenant mismatch, invalid status, and not-found behaviour.
-* Included `automation_action_execution` in the Celery domain list.
-
-### Notes
-* Execution records track the processing of automation actions on entities and enforce uniqueness via `execution_key`.
-* The current implementation exposes service-level APIs only; no external routes or events are provided at this time.
-
-## [2026-01-03] – Record Watcher Domain
+## [2026-01-03] – Company and Deal Ownership Enhancements
 
 ### Added
-* Added record watcher domain: SQLAlchemy model, Pydantic schemas, service layer, events and message producer.
-* Added admin and tenant routes to list, create and delete record watchers.
-* Integrated record watcher routers into `main_api.py` and the aggregated API router exports.
+* Added ``owned_by_user_id`` and ``owned_by_group_id`` columns to the **Company** model with composite foreign keys to ``tenant_user_shadow`` and ``tenant_group_shadow``.  Added indexes on these columns to accelerate owner lookups.  Extended the company Pydantic schemas to accept optional ownership fields on create and include them in read responses.  Company routes now accept ownership fields and forward them to the service layer.
+* Added ownership (``owned_by_user_id``, ``owned_by_group_id``) and assignment (``assigned_user_id``, ``assigned_group_id``) fields to the **Deal** model along with ``deal_type``, ``forecast_probability`` and ``close_date`` columns.  Defined composite foreign key constraints and indexes for these fields to maintain referential integrity and query performance.  Updated deal schemas to expose and accept these fields in create, update and read operations.
 
 ### Changed
-* Updated router aggregator (`app/api/routes/__init__.py`) and `main_api.py` to import and include record watcher routers.
-* Updated event exports to include `RecordWatcherCreatedEvent` and `RecordWatcherDeletedEvent`.
+* Modified the company service to persist ownership fields on creation and include them in snapshot payloads for events.  Updated the company snapshot helper and patch mapping to expose and allow updates to ownership fields.
+* Updated the deal service to persist ownership, assignment, categorisation and forecasting fields on creation and update.  Deal snapshots now include these fields so that events carry the extended deal properties.
+* Updated company and deal route tests to include ownership/assignment/type/forecast fields in create calls and to assert that these values are forwarded to the service layer.
+
+### Tests
+* Extended ``tests/test_company.py`` to cover ownership assignment by including ``owned_by_user_id`` in create requests and verifying that the service layer receives and returns this data.
+* Updated ``tests/test_deal_routes.py`` to supply ownership, assignment, deal_type, forecast_probability and close_date fields when creating deals and to assert that these attributes are forwarded through the route to the service.
 
 ### Notes
-* Record watchers allow users or groups to subscribe to changes on CRM records.  Only creation and deletion are supported; updating a watcher requires deletion and re‑creation.
+* Future iterations may add validation to ensure only one of the ownership fields (user vs group) and assignment fields is provided.  Event payload structures remain unchanged because snapshots now include the new properties.
+
+## [2026-01-03] – Contact Ownership and Pipeline Test Updates
+
+### Added
+* Added ``owned_by_user_id`` and ``owned_by_group_id`` columns to the **Contact** model with composite foreign keys to ``tenant_user_shadow`` and ``tenant_group_shadow`` and indexes to optimise lookups by owner.  These fields allow contacts to be assigned to a user or group within the tenant.
+* Extended contact creation schemas (`TenantCreateContact` and `AdminCreateContact`) to accept optional ownership fields.  Added these fields to the ``ContactOut`` response model.
+
+### Changed
+* Updated the contact service to persist ownership assignments on create and include the new fields in snapshot payloads for event publishing.  Updated contact snapshot helper to expose ownership fields.
+* Modified pipeline route tests to account for the new pipeline fields (`object_type`, `display_order`, `is_active`, `pipeline_key`, `movement_mode`) by generating complete `PipelineRead` fixtures and forwarding optional filters to the service layer.
+
+### Tests
+* Updated ``tests/test_pipeline_routes.py`` to supply required ``object_type`` when creating pipelines and to verify that optional filters ``object_type`` and ``is_active`` are forwarded to the service.  Extended helper functions to include defaults for all pipeline fields.
+* Updated ``tests/test_contact.py`` helper to include ownership fields in ``ContactOut`` fixtures.
+
+### Notes
+* Ownership validation (ensuring only one of ``owned_by_user_id`` or ``owned_by_group_id`` is set) and route documentation updates are pending for a future iteration.
+
+## [2026-01-03] – List and List Membership Enhancements
+
+### Added
+* Added ``processing_type`` and ``is_archived`` columns to the **List** model with sensible defaults.  Introduced an additional index on ``(tenant_id, object_type)`` to improve query performance when filtering lists by object type【277659904262965†L864-L964】.
+* Extended list Pydantic schemas to include the new ``processing_type`` and ``is_archived`` fields for create, update and read operations.  Added corresponding query parameters in both admin and tenant list routes to allow filtering lists by processing behaviour and archival status.
+* Introduced a ``ListObjectType`` enum for list memberships and updated list membership schemas to validate the ``member_type`` field against this enum.
+
+### Changed
+* Updated the list service to persist ``processing_type`` and ``is_archived`` on list creation and update.  List listing now supports filtering by these new fields.  List routes forward these additional parameters to the service layer.  Updated tests to ensure these fields are properly handled.
+
+### Tests
+* Updated ``tests/test_list_routes.py`` to include ``processing_type`` and ``is_archived`` in list creation and listing tests, and to assert that these filters are passed to the service layer.
+* List membership tests continue to pass as the Pydantic model automatically coerces string values into the new enum.
+
+### Notes
+* This iteration finalizes the pipeline stage domain improvements and completes the list and list membership updates.  Remaining pipeline domain enhancements (T050) and subsequent tasks will be addressed in the next iteration.
+
+## [2026-01-03] – Stage History and Pipeline Enhancements Implementation
+
+### Added
+* Implemented the **StageHistory** domain including a SQLAlchemy model with foreign keys to pipelines, pipeline stages and tenant users.  Added Pydantic schemas for creating and reading stage history entries, a service for recording transitions and listing history by entity, an event schema and producer for stage history creation, and a tenant GET route to expose stage change history via the API.  Added corresponding route tests to verify parameter forwarding and pagination behavior.
+* Added new fields to the **Pipeline** domain model: `object_type`, `display_order`, `is_active`, `pipeline_key` and `movement_mode`, along with unique constraints and an index on `(tenant_id, object_type)`.  Extended Pydantic schemas to include these fields with sensible defaults and optional values for creation and update.  Added service logic to compute default values for `display_order`, `is_active`, `pipeline_key` and `movement_mode`, and updated list operations to filter by `object_type` and `is_active`【277659904262965†L587-L627】.
+
+### Changed
+* Modified pipeline service functions to accept and persist the new fields.  Creation now assigns a `display_order` based on the number of existing pipelines in the same tenant and object type, ensures the pipeline is active by default, and generates a unique `pipeline_key` when omitted.  Update operations now allow changes to all pipeline attributes and publish deltas when any field changes.
+* Updated admin and tenant pipeline routes to accept `object_type` and `is_active` filters and to pass the new fields to the service layer on create/update.  The list endpoints now support filtering pipelines by object type and active state.
+
+### Tests
+* Added route tests for stage history listing to confirm that the endpoint delegates correctly to the service layer and returns a paginated envelope.
+* Existing pipeline route tests continue to pass with the new optional parameters; further tests covering the new fields and service logic are planned for subsequent iterations.
+
+### Notes
+* Stage history is currently recorded only via explicit service calls; integration with pipeline stage updates will be addressed in a later task.  Pipeline event payloads automatically include the new fields because snapshots are built via the updated `PipelineRead` schema.
+
+## [2026-01-03] – Automation Action Execution Status Event and Test Implementation
+
+### Added
+* Added event schema ``AutomationActionExecutionStatusChangedEvent`` and message producer ``AutomationActionExecutionMessageProducer`` to emit status change events for automation action executions.  These events allow downstream services to track execution state transitions.
+* Integrated event emission into ``automation_action_execution_service.update_execution_status`` via a helper that builds a full execution snapshot and publishes a status changed event after the database commit.
+* Added unit tests in ``tests/test_automation_action_execution_service.py`` to ensure that updating an execution record emits the correct status changed event and that new executions default to ``PENDING`` status.  Added tests verifying the producer publishes messages with the correct task name and headers.
+
+### Changed
+* Refactored ``automation_action_execution_service`` to remove duplicate imports and to emit status changed events automatically on status updates.  Added a helper ``_execution_snapshot`` to convert execution ORM objects into Pydantic read models for payloads.
+
+### Tests
+* Added ``tests/test_automation_action_execution_service.py`` covering service behaviour and producer output for execution status changes.
+
+### Notes
+* These additions complete the execution logging domain by ensuring status transitions are observable via the message broker.
+
+## [2026-01-03] – Automation Action Domain Completion and Execution Logging Implementation
+
+### Added
+* Added a database check constraint to the **AutomationAction** model enforcing that exactly one of the scope target columns (`record_id`, `pipeline_id`, `pipeline_stage_id`, `list_id`) is non‑null.  This application‑level validation already exists in the Pydantic schemas; now the model also enforces it at the database layer【480489992503603†L220-L224】.
+* Added foreign key relationships on `pipeline_id`, `pipeline_stage_id` and `list_id` columns to reference the `pipelines`, `pipeline_stages` and `lists` tables, respectively, with `SET NULL` semantics on delete.  These FKs mirror the relationships defined in the migration.
+* Updated the unique constraint for `automation_actions` to explicitly apply to `(tenant_id, id)` to ensure tenant isolation and clarified constraint naming.
+* Completed the **AutomationActionExecution** domain scaffolding by verifying creation, update and listing functions and ensuring compile‑time correctness.  No external routes are required for execution logging, but the domain now exposes create and update operations via the service layer.
+
+### Changed
+* Modified `app/domain/models/automation_action.py` to include the check constraint and foreign keys described above.  Adjusted `__table_args__` accordingly.
+
+### Notes
+* These changes finalize the database model for automation actions and ensure that execution logging is properly represented in the domain layer.  Additional integration tests and validations will be addressed in subsequent iterations.
+
+## [2026-01-03] – Automation Action Domain Skeleton Implementation
+
+### Added
+* Introduced the **AutomationAction** and **AutomationActionExecution** domains.  Added a SQLAlchemy model for `automation_actions` with fields for entity, scope, trigger, condition, action configuration, priority, enabled state and audit columns.  Added a model for `automation_action_execution` to log execution outcomes with status, response and error details, along with appropriate unique constraints and indexes【480489992503603†L343-L367】.
+* Added Pydantic schemas (`AutomationActionCreate`, `AutomationActionUpdate`, `AutomationActionRead`) with validation to enforce that exactly one target column (record, pipeline, stage or list) is provided【480489992503603†L220-L224】.  Added schemas for execution logging (`AutomationActionExecutionCreate`, `AutomationActionExecutionRead`).
+* Implemented service modules for automation actions and execution logs, supporting list, create, update and delete operations with application‑layer validation, defaulting and delta calculation.  These services emit events via a new `AutomationActionMessageProducer` after successful commits.
+* Added event models for automation actions (`AutomationActionCreatedEvent`, `AutomationActionUpdatedEvent`, `AutomationActionDeletedEvent`) and a corresponding message producer.  Added admin and tenant FastAPI route modules to expose CRUD endpoints for automation actions, with query‑based tenant scoping in the admin context.
+* Added imports for the new models, schemas, producers and routes in the appropriate `__init__` modules and registered the routes with the main FastAPI application.  Updated the project to include record watcher and automation action routers.
+* Added a new test module (`test_automation_action_routes.py`) that verifies the admin and tenant automation action endpoints delegate correctly to the service layer and propagate audit headers and parameters.  These tests mirror patterns used for record watcher routes.
+
+### Changed
+* Updated `main_api.py` and the route aggregator to include record watcher and automation action routers.  Updated domain model and schema aggregators and the producer aggregator to import the new types.
+
+### Notes
+* This iteration focuses on scaffolding the automation action and execution domains.  Unique constraints and check constraints on the SQL models are simplified and may require enhancement in future iterations.  Additional validations (e.g., ensuring referenced records exist) and integration tests remain to be implemented.
+
+## [2026-01-03] – Record Watcher Domain Skeleton Implementation
+
+### Added
+* Introduced the **RecordWatcher** domain to the CRM service.  Created a SQLAlchemy model with a composite primary key, corresponding Pydantic schemas, service layer functions for listing, creating and deleting watchers, event schemas, a Celery message producer, and admin and tenant FastAPI routes.  Updated the domain and API aggregators and the main application to wire in the new routes.
+
+### Changed
+* Updated `app/domain/models/__init__.py` and `app/domain/schemas/__init__.py` to include the new `RecordWatcher` model and schemas.  Added imports for the new routers in `app/api/routes/__init__.py` and registered them in `main_api.py`.
+
+### Tests
+* Added a new test module (`test_record_watcher_routes.py`) that verifies the admin and tenant record watcher endpoints delegate properly to the service layer.  These tests mirror the patterns used for list memberships and ensure audit fields, path parameters and pagination are forwarded correctly.
+
+### Notes
+* This iteration establishes the structural foundation for record watchers but does not yet implement record existence validation or comprehensive test coverage.  Future work will add validations and unit tests to ensure correct behaviour.
 
 ## [2026-01-02] – Test Suite Update and Final Review
 

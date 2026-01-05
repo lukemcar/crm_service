@@ -2,7 +2,7 @@
 
 These tests verify that the refactored list endpoints delegate to the
 service layer with the correct parameters and that audit fields are
-populated from the ``X‑User`` header when provided.  A simple
+populated from the ``X-User`` header when provided.  A simple
 ``DummySession`` class is used to satisfy type hints without requiring
 a real database connection.  Service functions are monkeypatched to
 capture their inputs and return predictable results.
@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime, timezone
-from typing import Optional, List
+from typing import List
 
 import pytest
 from sqlalchemy.orm import Session
@@ -35,7 +35,7 @@ from app.api.routes.lists_tenant_route import (
 
 
 class DummySession(Session):
-    """Lightweight stand‑in for SQLAlchemy Session to satisfy type hints."""
+    """Lightweight stand-in for SQLAlchemy Session to satisfy type hints."""
 
     pass
 
@@ -46,6 +46,8 @@ def _fake_list_read(
     name: str = "Test List",
     object_type: str = "contact",
     list_type: str = "static",
+    processing_type: str = "STATIC",
+    is_archived: bool = False,
     created_by: str = "tester",
     updated_by: str = "tester",
 ) -> ListRead:
@@ -58,6 +60,8 @@ def _fake_list_read(
         object_type=object_type,
         list_type=list_type,
         filter_definition=None,
+        processing_type=processing_type,
+        is_archived=is_archived,
         created_at=now,
         updated_at=now,
         created_by=created_by,
@@ -85,6 +89,8 @@ def test_list_lists_admin_calls_service(monkeypatch: pytest.MonkeyPatch) -> None
         name="Search",
         object_type="contact",
         list_type="static",
+        processing_type="STATIC",
+        is_archived=False,
         limit=5,
         offset=0,
         db=fake_db,
@@ -95,6 +101,8 @@ def test_list_lists_admin_calls_service(monkeypatch: pytest.MonkeyPatch) -> None
     assert captured["name"] == "Search"
     assert captured["object_type"] == "contact"
     assert captured["list_type"] == "static"
+    assert captured["processing_type"] == "STATIC"
+    assert captured["is_archived"] is False
     assert captured["limit"] == 5
     assert captured["offset"] == 0
     assert result.total == total
@@ -102,10 +110,16 @@ def test_list_lists_admin_calls_service(monkeypatch: pytest.MonkeyPatch) -> None
 
 
 def test_create_list_admin_uses_x_user(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Admin create endpoint should pass through ``X‑User`` to the service layer."""
+    """Admin create endpoint should pass through ``X-User`` to the service layer."""
     tenant_id = uuid.uuid4()
     fake_db = DummySession()
-    payload = ListCreate(name="New List", object_type="contact", list_type="static")
+    payload = ListCreate(
+        name="New List",
+        object_type="contact",
+        list_type="static",
+        processing_type="STATIC",
+        is_archived=False,
+    )
     fake_list = _fake_list_read(
         tenant_id=tenant_id,
         list_id=uuid.uuid4(),
@@ -195,7 +209,6 @@ def test_delete_list_admin_calls_service(monkeypatch: pytest.MonkeyPatch) -> Non
     assert captured["db"] is fake_db
     assert captured["tenant_id"] == tenant_id
     assert captured["list_id"] == list_id
-    # Delete returns a Response with status 204
     assert result.status_code == 204
 
 
@@ -219,6 +232,8 @@ def test_list_lists_tenant_calls_service(monkeypatch: pytest.MonkeyPatch) -> Non
         name=None,
         object_type=None,
         list_type=None,
+        processing_type=None,
+        is_archived=None,
         limit=None,
         offset=None,
         db=fake_db,
@@ -229,6 +244,8 @@ def test_list_lists_tenant_calls_service(monkeypatch: pytest.MonkeyPatch) -> Non
     assert captured["name"] is None
     assert captured["object_type"] is None
     assert captured["list_type"] is None
+    assert captured["processing_type"] is None
+    assert captured["is_archived"] is None
     assert captured["limit"] is None
     assert captured["offset"] is None
     assert result.total == total
@@ -236,10 +253,16 @@ def test_list_lists_tenant_calls_service(monkeypatch: pytest.MonkeyPatch) -> Non
 
 
 def test_create_list_tenant_uses_x_user(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Tenant create endpoint should forward ``X‑User`` to the service layer."""
+    """Tenant create endpoint should forward ``X-User`` to the service layer."""
     tenant_id = uuid.uuid4()
     fake_db = DummySession()
-    payload = ListCreate(name="Tenant List", object_type="contact", list_type="static")
+    payload = ListCreate(
+        name="Tenant List",
+        object_type="contact",
+        list_type="static",
+        processing_type="STATIC",
+        is_archived=False,
+    )
     fake_list = _fake_list_read(
         tenant_id=tenant_id,
         list_id=uuid.uuid4(),

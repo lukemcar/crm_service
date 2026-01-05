@@ -56,8 +56,11 @@ from .kb_article_revision_producer import KbArticleRevisionMessageProducer
 from .kb_article_feedback_producer import KbArticleFeedbackMessageProducer
 from .ticket_metrics_producer import TicketMetricsMessageProducer
 from .ticket_status_duration_producer import TicketStatusDurationMessageProducer
-from .record_watcher_producer import RecordWatcherMessageProducer
 from .automation_action_producer import AutomationActionMessageProducer
+from .automation_action_execution_producer import (
+    AutomationActionExecutionMessageProducer,
+)
+from .stage_history_producer import StageHistoryMessageProducer
 
 __all__ = [
     "ActivityMessageProducer",
@@ -103,6 +106,7 @@ __all__ = [
     "KbArticleFeedbackMessageProducer",
     "TicketMetricsMessageProducer",
     "TicketStatusDurationMessageProducer",
-    "RecordWatcherMessageProducer",
     "AutomationActionMessageProducer",
+    "AutomationActionExecutionMessageProducer",
+    "StageHistoryMessageProducer",
 ]

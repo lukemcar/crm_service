@@ -207,6 +207,9 @@ def _company_snapshot(company: Any) -> Dict[str, Any]:
         "legal_name": getattr(company, "legal_name", None),
         "industry": getattr(company, "industry", None),
         "website": getattr(company, "website", None),
+        # Ownership fields included for consumers
+        "owned_by_user_id": getattr(company, "owned_by_user_id", None),
+        "owned_by_group_id": getattr(company, "owned_by_group_id", None),
         "created_at": company.created_at.isoformat() if company.created_at else None,
         "updated_at": company.updated_at.isoformat() if company.updated_at else None,
         "created_by": getattr(company, "created_by", None),
@@ -318,6 +321,9 @@ def create_company(
         company_name=request.name,
         domain=getattr(request, "website", None),
         industry=getattr(request, "industry", None),
+        # Assign ownership fields if provided on the request
+        owned_by_user_id=getattr(request, "owned_by_user_id", None),
+        owned_by_group_id=getattr(request, "owned_by_group_id", None),
         created_at=datetime.utcnow(),
         updated_at=datetime.utcnow(),
         created_by=created_by,
@@ -454,6 +460,9 @@ def patch_company(
         field_map = {
             "name": "company_name",
             "website": "domain",
+            # Ownership fields map directly to ORM attributes
+            "owned_by_user_id": "owned_by_user_id",
+            "owned_by_group_id": "owned_by_group_id",
         }
         internal_field = field_map.get(field_name, field_name)
         if operation.op in ("add", "replace"):

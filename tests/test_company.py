@@ -32,6 +32,9 @@ def _fake_company_out(
     company_id: uuid.UUID,
     name: str,
     website: str | None = None,
+    *,
+    owned_by_user_id: uuid.UUID | None = None,
+    owned_by_group_id: uuid.UUID | None = None,
 ) -> CompanyOut:
     now = datetime.now(timezone.utc)
     return CompanyOut(
@@ -40,11 +43,12 @@ def _fake_company_out(
         name=name,
         website=website,
         industry=None,
-        is_internal=False,
         created_at=now,
         updated_at=now,
         created_by="tester",
         updated_by="tester",
+        owned_by_user_id=owned_by_user_id,
+        owned_by_group_id=owned_by_group_id,
     )
 
 
@@ -56,11 +60,12 @@ def test_create_company_uses_x_user_as_created_by(monkeypatch: pytest.MonkeyPatc
     tenant_id = uuid.uuid4()
     fake_db = DummySession()
 
+    owner_user_id = uuid.uuid4()
     payload = TenantCreateCompany(
         name="ACME Corp",
         website="acme.com",
         industry=None,
-        is_internal=False,
+        owned_by_user_id=owner_user_id,
     )
 
     fake_company = _fake_company_out(
@@ -68,6 +73,7 @@ def test_create_company_uses_x_user_as_created_by(monkeypatch: pytest.MonkeyPatc
         company_id=uuid.uuid4(),
         name=payload.name,
         website=payload.website,
+        owned_by_user_id=owner_user_id,
     )
 
     captured_kwargs: dict = {}
@@ -91,6 +97,8 @@ def test_create_company_uses_x_user_as_created_by(monkeypatch: pytest.MonkeyPatc
     assert captured_kwargs["db"] is fake_db
     assert captured_kwargs["tenant_id"] == tenant_id
     assert captured_kwargs["request"] == payload
+    # Ensure ownership fields are forwarded to the service
+    assert captured_kwargs["request"].owned_by_user_id == owner_user_id
     assert captured_kwargs["created_by"] == "tester"
 
     assert result == fake_company

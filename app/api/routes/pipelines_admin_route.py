@@ -33,24 +33,37 @@ router = APIRouter(prefix="/admin/pipelines", tags=["pipelines"])
 def list_pipelines(
     *,
     tenant_id: Optional[UUID] = Query(
-        None, description="Tenant identifier for scoping; omit to list all tenants"
+        None,
+        description="Tenant identifier for scoping; omit to list all tenants",
     ),
     name: Optional[str] = Query(
-        None, description="Filter pipelines by name (case‑insensitive substring match)"
+        None,
+        description="Filter pipelines by name (case‑insensitive substring match)",
     ),
     object_type: Optional[str] = Query(
-        None, description="Filter pipelines by object type (e.g., DEAL, TICKET)"
+        None,
+        description="Filter pipelines by object type (exact match)",
     ),
     is_active: Optional[bool] = Query(
-        None, description="Filter by pipeline active status"
+        None,
+        description="Filter pipelines by active state (True or False)",
     ),
-    limit: Optional[int] = Query(None, ge=1, description="Maximum number of pipelines to return"),
-    offset: Optional[int] = Query(None, ge=0, description="Number of pipelines to skip"),
+    limit: Optional[int] = Query(
+        None,
+        ge=1,
+        description="Maximum number of pipelines to return",
+    ),
+    offset: Optional[int] = Query(
+        None,
+        ge=0,
+        description="Number of pipelines to skip",
+    ),
     db: Session = Depends(get_db),
 ) -> schemas.PaginationEnvelope[schemas.PipelineRead]:
     """List pipelines (admin context).
 
-    Allows optional filtering by tenant, name, object type and active status, and supports pagination.
+    Allows optional filtering by tenant, name, object type and active state, and
+    supports pagination.
     """
     items, total = pipeline_service.service_list_pipelines(
         db,

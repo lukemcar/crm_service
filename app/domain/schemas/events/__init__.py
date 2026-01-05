@@ -60,15 +60,10 @@ from .association_event import (
     AssociationCreatedMessage,
     AssociationDeletedMessage,
 )
-from .record_watcher_event import (
-    RecordWatcherCreatedEvent,
-    RecordWatcherDeletedEvent,
+from .automation_action_execution_event import (
+    AutomationActionExecutionStatusChangedEvent,
 )
-from .automation_action_event import (
-    AutomationActionCreatedEvent,
-    AutomationActionUpdatedEvent,
-    AutomationActionDeletedEvent,
-)
+from .stage_history_event import StageHistoryCreatedEvent
 
 __all__ = [
     # Common envelope
@@ -116,11 +111,8 @@ __all__ = [
     "AssociationBaseMessage",
     "AssociationCreatedMessage",
     "AssociationDeletedMessage",
-    # Record watchers
-    "RecordWatcherCreatedEvent",
-    "RecordWatcherDeletedEvent",
-    # Automation actions
-    "AutomationActionCreatedEvent",
-    "AutomationActionUpdatedEvent",
-    "AutomationActionDeletedEvent",
+    # Automation action execution events
+    "AutomationActionExecutionStatusChangedEvent",
+    # Stage history
+    "StageHistoryCreatedEvent",
 ]

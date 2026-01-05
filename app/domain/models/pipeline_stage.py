@@ -35,16 +35,26 @@ from app.core.db import Base
 class PipelineStage(Base):
     __tablename__ = "pipeline_stages"
     __table_args__ = (
-        # Unique order of stages within a pipeline
-        UniqueConstraint("pipeline_id", "display_order", name="ux_pipeline_stage_pipeline_display_order"),
-        # Stage names must be unique within a pipeline
-        UniqueConstraint("pipeline_id", "name", name="ux_pipeline_stages_pipeline_name"),
-        # Indexes for faster lookups
+        # Enforce unique stage ordering within a pipeline by display_order
+        UniqueConstraint(
+            "pipeline_id",
+            "display_order",
+            name="ux_pipeline_stages_pipeline_display_order",
+        ),
+        # Stage names are unique within a pipeline
+        UniqueConstraint(
+            "pipeline_id",
+            "name",
+            name="ux_pipeline_stages_pipeline_name",
+        ),
         Index("ix_pipeline_stages_pipeline_id", "pipeline_id"),
         Index("ix_pipeline_stages_tenant", "tenant_id"),
-        # Ensure probability is within [0,1]
-        CheckConstraint("probability >= 0 AND probability <= 1", name="ck_pipeline_stage_probability_range"),
-        # Composite FK for tenant safety
+        # Probability must be either NULL or between 0 and 1
+        CheckConstraint(
+            "probability IS NULL OR (probability >= 0 AND probability <= 1)",
+            name="ck_pipeline_stage_probability_range",
+        ),
+        # Composite FK ensures pipeline and tenant match
         ForeignKeyConstraint(
             ["pipeline_id", "tenant_id"],
             ["dyno_crm.pipelines.id", "dyno_crm.pipelines.tenant_id"],
@@ -76,10 +86,10 @@ class PipelineStage(Base):
         nullable=False,
     )
 
+    # New ordering column; replaces stage_order
     display_order: Mapped[int] = mapped_column(
         Integer,
         nullable=False,
-        doc="Display order of the stage within the pipeline",
     )
 
     probability: Mapped[Optional[Decimal]] = mapped_column(
@@ -87,18 +97,18 @@ class PipelineStage(Base):
         nullable=True,
     )
 
+    # The current state of the stage (e.g. NOT_STARTED, IN_PROGRESS, COMPLETED)
     stage_state: Mapped[str] = mapped_column(
-        String(30),
+        String(50),
         nullable=False,
         default="NOT_STARTED",
-        doc="Current state of the stage (e.g., NOT_STARTED, ACTIVE, WON, LOST)",
     )
 
+    # Whether to inherit actions defined at the pipeline level
     inherit_pipeline_actions: Mapped[bool] = mapped_column(
         Boolean,
         nullable=False,
-        default=False,
-        doc="If true, this stage inherits automation actions from the parent pipeline",
+        default=True,
     )
 
     created_at: Mapped[datetime] = mapped_column(
@@ -144,6 +154,6 @@ class PipelineStage(Base):
 
     def __repr__(self) -> str:
         return (
-            f"<PipelineStage id={self.id} tenant_id={self.tenant_id} name={self.name} "
-            f"display_order={self.display_order}>"
+            f"<PipelineStage id={self.id} tenant_id={self.tenant_id} name={self.name}"
+            f" display_order={self.display_order} state={self.stage_state}>"
         )

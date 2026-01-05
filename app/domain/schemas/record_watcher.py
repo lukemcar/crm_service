@@ -1,11 +1,11 @@
 """
-Pydantic schemas for record watcher operations.
+Pydantic schemas for RecordWatcher.
 
-These models define the data structures used by the API and service
-layer when creating or retrieving record watcher subscriptions.  A
-watcher is identified by a tenant, record type and ID, and principal
-type and ID.  The read schema exposes audit fields such as
-``created_at`` and ``created_by_user_id``.
+These schemas define the shape of data used to create and read record
+watcher records.  A record watcher associates a principal (user or
+group) with a CRM record so that changes to the record can be
+observed or notified.  The create schema excludes tenant_id as this
+is typically derived from the authenticated context or route path.
 """
 
 from __future__ import annotations
@@ -14,32 +14,32 @@ from datetime import datetime
 from typing import Optional
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 
 class RecordWatcherBase(BaseModel):
-    tenant_id: UUID
-    record_type: str = Field(..., max_length=50)
+    """Base fields common to record watcher operations."""
+
+    record_type: str = Field(..., max_length=50, description="Type of the record being watched")
     record_id: UUID
-    principal_type: str = Field(..., max_length=20)
+    principal_type: str = Field(
+        ..., max_length=50, description="Type of the principal subscribing to changes"
+    )
     principal_id: UUID
 
 
 class RecordWatcherCreate(RecordWatcherBase):
-    """Model for creating a new record watcher subscription."""
+    """Schema for creating a record watcher."""
 
-    # ``created_by_user_id`` is derived from the user header; omit from client
     pass
 
 
 class RecordWatcherRead(RecordWatcherBase):
-    """Model returned when reading an existing record watcher."""
+    """Schema for reading a record watcher."""
 
+    tenant_id: UUID
     created_at: datetime
-    created_by_user_id: Optional[UUID] = None
+    created_by_user_id: Optional[str] = None
 
-    # Configure Pydantic v2 to load from ORM attributes
+    # Configure Pydantic v2 to allow ORM loading
     model_config = ConfigDict(from_attributes=True)
-
-
-__all__ = ["RecordWatcherCreate", "RecordWatcherRead"]

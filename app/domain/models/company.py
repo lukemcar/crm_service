@@ -9,7 +9,15 @@ import uuid
 from datetime import datetime
 from typing import List, Optional
 
-from sqlalchemy import Boolean, DateTime, Index, String, UniqueConstraint, text
+from sqlalchemy import (
+    Boolean,
+    DateTime,
+    Index,
+    String,
+    UniqueConstraint,
+    text,
+    ForeignKeyConstraint,
+)
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -19,15 +27,35 @@ from app.core.db import Base
 class Company(Base):
     __tablename__ = "company"
     __table_args__ = (
+        # Unique constraint on composite key (id, tenant_id)
         UniqueConstraint("id", "tenant_id", name="ux_company_id_tenant"),
+        # Unique constraint on company name per tenant
         Index("ux_company_tenant_company_name", "tenant_id", "company_name", unique=True),
+        # Standard tenant‑scoped indexes
         Index("ix_company_tenant", "tenant_id"),
         Index("ix_company_tenant_name", "tenant_id", "company_name"),
+        # Domain index for case‑insensitive searches
         Index(
             "ix_company_tenant_domain",
             "tenant_id",
             text("lower(domain)"),
             postgresql_where=text("domain IS NOT NULL"),
+        ),
+        # Indexes for ownership fields to accelerate lookups
+        Index("ix_company_tenant_owned_by_user", "tenant_id", "owned_by_user_id"),
+        Index("ix_company_tenant_owned_by_group", "tenant_id", "owned_by_group_id"),
+        # Composite foreign keys linking ownership fields to tenant projection tables
+        ForeignKeyConstraint(
+            ["tenant_id", "owned_by_user_id"],
+            ["tenant_user_shadow.tenant_id", "tenant_user_shadow.user_id"],
+            ondelete="SET NULL",
+            name="fk_company_owned_by_user_tenant",
+        ),
+        ForeignKeyConstraint(
+            ["tenant_id", "owned_by_group_id"],
+            ["tenant_group_shadow.tenant_id", "tenant_group_shadow.id"],
+            ondelete="SET NULL",
+            name="fk_company_owned_by_group_tenant",
         ),
         {"schema": "dyno_crm"},
     )
@@ -40,6 +68,22 @@ class Company(Base):
     industry: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
 
     is_internal: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+
+    # -----------------------------------------------------------------
+    # Ownership fields
+    #
+    # A company may be owned by a specific user or group.  Ownership
+    # information is stored via UUIDs pointing to the tenant_user_shadow
+    # and tenant_group_shadow projections.  These fields are optional and
+    # default to NULL when not supplied.  Indexes and foreign key
+    # constraints are defined in ``__table_args__`` above.
+    # -----------------------------------------------------------------
+    owned_by_user_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        PGUUID(as_uuid=True), nullable=True
+    )
+    owned_by_group_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        PGUUID(as_uuid=True), nullable=True
+    )
 
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(

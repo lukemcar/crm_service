@@ -2,10 +2,17 @@
 Record watcher event producer for the CRM service.
 
 This module defines a message producer class that publishes record
-watcher lifecycle events to the CRM exchange via Celery/RabbitMQ.
-Task names follow the ``<exchange>.record_watcher.<action>`` naming
-convention used by other producers in the system.  Events are sent
-after successful database transactions within the service layer.
+watcher lifecycle events to the CRM exchange via Celery.  Record
+watchers allow principals (users or groups) to subscribe to changes on
+CRM records.  When a watcher is created or deleted, an event is
+published using the tasks defined below.  Messages are wrapped in
+Pydantic models to ensure consistent schemas across producers and
+consumers.
+
+``RecordWatcherMessageProducer`` should be used by the service layer
+(``record_watcher_service.py``) to emit events after a successful
+database commit.  Consumers can rely on these messages being sent
+exactly once after the transaction has been committed.
 """
 
 from __future__ import annotations
@@ -15,14 +22,14 @@ from uuid import UUID
 
 from app.core.celery_app import EXCHANGE_NAME
 from app.domain.schemas.events.record_watcher_event import (
-    RecordWatcherCreatedEvent,
-    RecordWatcherDeletedEvent,
+    RecordWatcherCreatedMessage,
+    RecordWatcherDeletedMessage,
 )
 from .common import BaseProducer
 
 
 class RecordWatcherMessageProducer(BaseProducer):
-    """Publishes record watcher lifecycle events via Celery/RabbitMQ."""
+    """Publishes record watcher lifecycle events via Celery."""
 
     TASK_CREATED: str = f"{EXCHANGE_NAME}.record_watcher.created"
     TASK_DELETED: str = f"{EXCHANGE_NAME}.record_watcher.deleted"
@@ -49,7 +56,7 @@ class RecordWatcherMessageProducer(BaseProducer):
         payload : dict
             Snapshot of the created watcher.
         """
-        message = RecordWatcherCreatedEvent(
+        message = RecordWatcherCreatedMessage(
             tenant_id=tenant_id,
             payload=payload,
         )
@@ -73,7 +80,7 @@ class RecordWatcherMessageProducer(BaseProducer):
             ISO 8601 timestamp indicating when the deletion occurred.  If
             omitted, consumers may use the message processing timestamp.
         """
-        message = RecordWatcherDeletedEvent(
+        message = RecordWatcherDeletedMessage(
             tenant_id=tenant_id,
             deleted_dt=deleted_dt,
         )
