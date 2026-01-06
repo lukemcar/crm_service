@@ -31,6 +31,9 @@
 --   USER    = role applies only to users (internal Dyno CRM users)
 --   BOTH    = role applies to both contacts and users
 
+SET search_path TO public, dyno_crm;
+
+
 CREATE TYPE dyno_crm.deal_participant_role_scope AS ENUM (
     'CONTACT',
     'USER',
@@ -620,3 +623,59 @@ CREATE INDEX IF NOT EXISTS ix_deal_pipeline_stage_attachment_active
 -- stage-instance model is the system of record and no remaining objects
 -- reference dyno_crm.stage_history via foreign keys.
 DROP TABLE IF EXISTS dyno_crm.stage_history;
+
+-- ADD WORKFLOW to pipeline_movement_mode
+ALTER TYPE dyno_crm.pipeline_movement_mode ADD VALUE IF NOT EXISTS 'WORKFLOW';
+
+-- drop column object_type
+ALTER TABLE dyno_crm.pipeline
+    DROP CONSTRAINT IF EXISTS ux_pipeline_tenant_object,
+    DROP COLUMN IF EXISTS object_type;
+
+-- DROP pipeline_object_type
+DROP TYPE IF EXISTS dyno_crm.pipeline_object_type;
+DROP TYPE IF EXISTS dyno_crm.pipeline_stage_type;
+
+-- ----------------------------------------------------------------------
+-- MODIFY PIPELINE_STAGE.STATE ENUM
+-- ----------------------------------------------------------------------
+-- Migrate existing pipeline_stage.stage_state enum to new values:
+--   NOT_STARTED  -> OPEN
+--   IN_PROGRESS  -> OPEN
+--   DONE_SUCCESS -> WON
+--   DONE_FAILED  -> LOST
+
+-- 1) Rename the existing enum type out of the way
+ALTER TYPE dyno_crm.pipeline_stage_state
+RENAME TO pipeline_stage_state_old;
+
+-- 2) Create the new enum type
+CREATE TYPE dyno_crm.pipeline_stage_state AS ENUM (
+  'OPEN',
+  'WON',
+  'LOST'
+);
+
+-- 3) Drop the default temporarily (required because it references the old enum type)
+ALTER TABLE dyno_crm.pipeline_stage
+  ALTER COLUMN stage_state DROP DEFAULT;
+
+-- 4) Convert the column to the new enum, mapping old values -> new values
+ALTER TABLE dyno_crm.pipeline_stage
+  ALTER COLUMN stage_state TYPE dyno_crm.pipeline_stage_state
+  USING (
+    CASE stage_state::text
+      WHEN 'NOT_STARTED'  THEN 'OPEN'::dyno_crm.pipeline_stage_state
+      WHEN 'IN_PROGRESS'  THEN 'OPEN'::dyno_crm.pipeline_stage_state
+      WHEN 'DONE_SUCCESS' THEN 'WON'::dyno_crm.pipeline_stage_state
+      WHEN 'DONE_FAILED'  THEN 'LOST'::dyno_crm.pipeline_stage_state
+      ELSE NULL
+    END
+  );
+
+-- 5) Re-apply an appropriate default
+ALTER TABLE dyno_crm.pipeline_stage
+  ALTER COLUMN stage_state SET DEFAULT 'OPEN';
+
+-- 6) Drop the old enum type
+DROP TYPE dyno_crm.pipeline_stage_state_old;

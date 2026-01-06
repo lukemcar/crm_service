@@ -70,6 +70,7 @@ EXCEPTION
     WHEN duplicate_object THEN NULL;
 END $$;
 
+
 -- Stage semantic category (JIRA status category equivalent).
 -- NOTE: This intentionally replaces sales-only 'won/lost' stage semantics.
 DO $$ BEGIN
